@@ -26,3 +26,7 @@
 - GitHub Pages no está configurado desde esta entrega; cargar código al repositorio NO significa que exista un sitio publicado.
 
 **Importante:** las modificaciones de seguridad sobre componentes de otras aplicaciones requieren evaluación de dependencias y una validación de funcionamiento antes de aplicarlas.
+
+## GitHub Pages
+
+Este repositorio contiene un flujo de GitHub Actions en `.github/workflows/pages.yml` que publica la demo estática con datos ficticios. Configura **Settings → Pages → Source: GitHub Actions**. Revisa **Actions** para confirmar que el despliegue termine correctamente.
