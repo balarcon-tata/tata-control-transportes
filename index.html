@@ -1,5 +1,80 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#12141a"><title>TATA | Control de Transportes</title><meta name="description" content="TATA Control de Transportes — versión de prueba"><link rel="stylesheet" href="./styles.css"></head>
-<body><div id="app"><div class="boot"><div class="spinner"></div><p>Preparando TATA Control de Transportes…</p></div></div><script type="module" src="./app.js"></script></body>
-</html>
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TATA | Transportes · Demo V7</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#f5f6fa;background:#101317}
+*{box-sizing:border-box}body{margin:0}header{background:#191e24;border-bottom:1px solid #303944;padding:19px max(16px,calc((100% - 1100px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:24px;margin:4px 0 0}h2{font-size:19px;margin:0 0 14px}p{line-height:1.55}.sub{color:#aab5bf;font-size:13px}.brand{font-weight:900;font-size:25px;letter-spacing:.08em}.brand span{color:#e14e64}.tag{display:inline-block;background:#41301b;color:#ffd18c;border:1px solid #805829;border-radius:100px;padding:6px 11px;font-weight:650;font-size:12px}main{max-width:1100px;margin:auto;padding:24px 16px 50px}.notice{background:#32231e;border:1px solid #704a38;border-radius:12px;padding:13px 16px;color:#ffdaaa;font-size:14px;margin-bottom:20px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat,.panel{background:#1b2027;border:1px solid #343c48;border-radius:14px;padding:19px}.stat b{display:block;font-size:29px;margin-top:7px}.stat span{font-size:12px;color:#abb6c1}.split{display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-top:14px}.field{display:flex;flex-direction:column;gap:7px;margin:14px 0}label{font-size:13px;color:#d2dbe4;font-weight:600}select,input{width:100%;background:#10151a;border:1px solid #586171;color:white;border-radius:9px;padding:12px;font-size:15px}button{cursor:pointer;border:0;border-radius:9px;background:#b52640;color:#fff;font-weight:750;padding:12px 16px}button:disabled{opacity:.5;cursor:not-allowed}.outline{background:#27313c;border:1px solid #55606d}.small{padding:8px 12px;font-size:12px}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:9px}.routes{font-size:13px;color:#aab5bf}.rows{display:flex;flex-direction:column;gap:10px}.item{border:1px solid #394450;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.item strong{display:block;margin-bottom:4px}.item .meta{color:#b8c2cd;font-size:12px;line-height:1.5}.late{color:#ff8e8e}.ok{color:#80d4a5}.tiny{font-size:12px;color:#a7b3be}.tabs{display:flex;flex-wrap:wrap;gap:7px;margin:20px 0}.tab{background:#252d37}.tab.active{background:#b52640}.hide{display:none!important}.foot{padding:20px 0;color:#9dabb6;font-size:13px}#message{min-height:18px;font-size:13px;color:#a9e0bd;margin-top:10px}.right{text-align:right}@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}.stat{padding:14px}header{padding:16px}.item{align-items:flex-start}h1{font-size:21px}}
+</style>
+</head><body>
+<header><div><div class="brand">TATA <span>TRANSPORTES</span></div><h1>Control de traslados · V7</h1><div class="sub">Versión demostrativa para validar el flujo de marcajes</div></div><div class="controls"><span class="tag">DEMO · Sin conexión a Supabase</span><button class="outline small" id="reset">Reiniciar pruebas</button></div></header>
+<main>
+<div class="notice"><strong>Entorno ficticio.</strong> Los registros se guardan exclusivamente en este navegador. No se envían a Supabase, Teams ni otros equipos. No uses datos de colaboradores reales.</div>
+<div class="stats">
+<div class="stat"><span>Traslados iniciados</span><b id="total">0</b></div>
+<div class="stat"><span>En recorrido</span><b id="active">0</b></div>
+<div class="stat"><span>Finalizados</span><b id="done">0</b></div>
+<div class="stat"><span>En demora</span><b id="late">0</b></div>
+</div>
+<div class="tabs"><button class="tab active" data-tab="registrar">Registrar salida</button><button class="tab" data-tab="en-curso">En recorrido</button><button class="tab" data-tab="historial">Historial</button></div>
+<div class="split" id="registrar">
+<section class="panel"><h2>Registrar salida</h2>
+<div class="field"><label for="badge">Gafete de prueba (ingrésalo o escanéalo con un lector)</label><input id="badge" list="codes" placeholder="TEST-0001" autocomplete="off"><datalist id="codes"><option value="TEST-0001"><option value="TEST-0002"><option value="TEST-0003"></datalist></div>
+<div class="field"><label for="person">Colaborador ficticio</label><select id="person"><option value="TEST-0001">TEST-0001 · Persona prueba 001</option><option value="TEST-0002">TEST-0002 · Persona prueba 002</option><option value="TEST-0003">TEST-0003 · Persona prueba 003</option></select></div>
+<div class="field"><label for="mode">Modalidad</label><select id="mode"><option value="pie">🚶 A pie</option><option value="scooter">🛴 Scooter</option><option value="camion">🚚 Camión</option><option value="tuctuc">🛺 Tuc tuc</option></select></div>
+<div class="field" id="vehicleWrap"><label for="vehicle">Vehículo</label><select id="vehicle"></select></div>
+<div class="field"><label for="origin">Origen</label><select id="origin"></select></div>
+<div class="field"><label for="dest">Destino</label><select id="dest"></select></div>
+<p class="routes" id="limitText"></p><button id="depart">Registrar salida →</button><div id="message"></div>
+</section>
+<section class="panel"><h2>Cómo realizar las pruebas</h2><p>Elige uno de los tres códigos ficticios, una modalidad y la ruta. Al registrar la salida aparecerá en la sección <strong>En recorrido</strong>; allí podrás confirmar la llegada o simular una demora.</p><p>Utiliza <strong>Reiniciar pruebas</strong> para borrar los movimientos de este navegador y comenzar de nuevo.</p><p class="tiny">Códigos válidos: TEST-0001, TEST-0002 y TEST-0003. En esta demo el ingreso con QR de cámara todavía no está habilitado; puedes usar un lector de códigos que escriba en el campo de gafete.</p><h2>Vehículos ficticios</h2><div id="fleet" class="rows"></div></section>
+</div>
+<section id="en-curso" class="panel hide"><h2>Traslados en recorrido</h2><div id="running" class="rows"></div></section>
+<section id="historial" class="panel hide"><h2>Historial de marcajes</h2><div id="history" class="rows"></div></section>
+<div class="foot">TATA Control de Transportes · Modo demo independiente · Ninguna acción afecta a Balances_ingenieria ni a la base tc_.</div>
+</main>
+<script>
+(function(){
+'use strict';
+var KEY='tata_transportes_demo_v7';
+var places=['Planta Cinturones','Planta Fajas','Estacion de Carga'];
+var personnel={'TEST-0001':'Persona prueba 001','TEST-0002':'Persona prueba 002','TEST-0003':'Persona prueba 003'};
+var modes={pie:'A pie',scooter:'Scooter',camion:'Camión',tuctuc:'Tuc tuc'};
+var limits={pie:15,scooter:7,camion:12,tuctuc:10};
+var vehicles=[{id:'TC-TEST-SCT-001',kind:'scooter',name:'Scooter prueba 01'},{id:'TC-TEST-SCT-002',kind:'scooter',name:'Scooter prueba 02'},{id:'TC-TEST-CAM-001',kind:'camion',name:'Camión prueba 01'},{id:'TC-TEST-TUC-001',kind:'tuctuc',name:'Tuc tuc prueba 01'}];
+var data;
+try{data=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(data))data=[];}catch(e){data=[];}
+var $=function(id){return document.getElementById(id);};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){notify('No se pudo guardar el ensayo en este navegador.',true)}}
+function el(tag,txt){var node=document.createElement(tag);if(txt!==undefined)node.textContent=String(txt);return node;}
+function notify(msg,error){$('message').textContent=msg;$('message').style.color=error?'#ff8e8e':'#a9e0bd';}
+function setOptions(select,items){select.textContent='';items.forEach(function(v){var opt=el('option',v.label||v.name||v);opt.value=v.id||v;select.append(opt)})}
+setOptions($('origin'),places);setOptions($('dest'),places);$('dest').selectedIndex=1;
+function vehicleList(){var kind=$('mode').value;var available=vehicles.filter(function(v){return v.kind===kind;});setOptions($('vehicle'),available.map(function(v){return {id:v.id,label:v.name+' · '+v.id}}));$('vehicleWrap').classList.toggle('hide',kind==='pie');$('limitText').textContent='Límite de recorrido: '+limits[kind]+' minutos (valor ficticio; no aprobado para operación).';}
+$('mode').addEventListener('change',vehicleList);vehicleList();
+$('badge').addEventListener('change',function(){var code=this.value.trim().toUpperCase();if(personnel[code]){$('person').value=code;notify('Código identificado: '+personnel[code])}else{notify('Código desconocido; utiliza TEST-0001, TEST-0002 o TEST-0003.',true)}});
+function activeTrips(){return data.filter(function(x){return !x.arrival})}
+function fmt(ms){return new Date(ms).toLocaleString('es-GT',{timeZone:'America/Guatemala',dateStyle:'short',timeStyle:'short'})}
+function mins(x){return Math.max(0,Math.floor((Date.now()-x.departure)/60000))}
+function isLate(x){return !x.arrival&&mins(x)>x.limit}
+function itemLine(x,arrived){var wrap=el('div');wrap.className='item';var left=el('div');left.append(el('strong',personnel[x.person]+' · '+modes[x.mode]));var meta=el('div',x.origin+' → '+(x.actualDest||x.dest)+' · '+x.person+(x.vehicle?' · '+x.vehicle:'')+' · '+fmt(x.departure));meta.className='meta';left.append(meta);var time=el('div',arrived?'Duración: '+Math.floor((x.arrival-x.departure)/60000)+' min':(isLate(x)?'Demorado · ':'En curso · ')+mins(x)+' min / '+x.limit+' min');time.className=isLate(x)?'late':'ok';left.append(time);wrap.append(left);if(!arrived){var controls=el('div');controls.className='controls';var complete=el('button','Confirmar llegada');complete.className='small';complete.onclick=function(){completeArrival(x.id)};var delay=el('button','Simular demora');delay.className='outline small';delay.onclick=function(){x.departure=Date.now()-(x.limit+2)*60000;save();render()};controls.append(complete,delay);wrap.append(controls)}return wrap;}
+function render(){var active=activeTrips();$('total').textContent=data.length;$('active').textContent=active.length;$('done').textContent=data.length-active.length;$('late').textContent=active.filter(isLate).length;var a=$('running');a.textContent='';if(!active.length)a.append(el('p','No hay traslados en curso. Registra una salida para comenzar.'));active.slice().reverse().forEach(function(x){a.append(itemLine(x,false))});var h=$('history');h.textContent='';if(!data.length)h.append(el('p','Todavía no hay marcajes de prueba.'));data.slice().reverse().forEach(function(x){h.append(itemLine(x,Boolean(x.arrival)))});var fleet=$('fleet');fleet.textContent='';vehicles.forEach(function(v){var busy=active.some(function(x){return x.vehicle===v.id});var row=el('div',v.name+' · '+(busy?'En uso':'Disponible'));row.className='tiny '+(busy?'late':'ok');fleet.append(row)})}
+function completeArrival(id){var entry=data.find(function(x){return x.id===id});if(!entry||entry.arrival)return;entry.arrival=Date.now();entry.actualDest=entry.dest;save();render();showTab('historial');notify('Llegada confirmada de '+entry.person+'.')}
+function showTab(tab){['registrar','en-curso','historial'].forEach(function(x){$(x).classList.toggle('hide',x!==tab)});document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab)})}
+document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click',function(){showTab(b.getAttribute('data-tab'));render()})});
+$('depart').onclick=function(){
+var raw=$('badge').value.trim().toUpperCase();var person=raw||$('person').value;var mode=$('mode').value;var vehicle=mode==='pie'?null:$('vehicle').value;var origin=$('origin').value;var dest=$('dest').value;
+if(!personnel[person])return notify('El gafete no existe en el catálogo ficticio.',true);
+if(origin===dest)return notify('El origen y destino deben ser diferentes.',true);
+if(activeTrips().some(function(x){return x.person===person}))return notify('Esta persona ya tiene un traslado en curso.',true);
+if(mode!=='pie'&&!vehicle)return notify('Selecciona un vehículo.',true);
+if(vehicle&&activeTrips().some(function(x){return x.vehicle===vehicle}))return notify('El vehículo ya está asignado a un traslado.',true);
+data.push({id:'DEMO-'+Date.now()+'-'+Math.floor(Math.random()*100000),person:person,mode:mode,vehicle:vehicle,origin:origin,dest:dest,limit:limits[mode],departure:Date.now(),arrival:null});
+save();$('badge').value='';render();showTab('en-curso');notify('Salida registrada correctamente: '+person+'.');
+};
+$('reset').onclick=function(){if(confirm('¿Borrar todos los marcajes ficticios guardados en este navegador?')){data=[];save();render();showTab('registrar');notify('Se reiniciaron los datos de prueba.')}};
+render();setInterval(render,30000);
+})();
+</script>
+</body></html>
