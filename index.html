@@ -17340,7 +17340,40 @@ function QRScanner({ onScan, onClose, label, step }) {
                 }, 400);
             }
             else {
-                setError("Tu navegador no soporta escaneo automatico. Usa la entrada manual.");
+                // Compatibilidad con navegadores sin BarcodeDetector (Firefox y algunos móviles).
+                try {
+                    if (!window.jsQR) {
+                        await new Promise((resolve, reject) => {
+                            const script = document.createElement("script");
+                            script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+                            script.onload = resolve;
+                            script.onerror = () => reject(new Error("No fue posible cargar el lector QR alternativo. Verifica tu conexión."));
+                            document.head.appendChild(script);
+                        });
+                    }
+                    if (window.jsQR) {
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d", { willReadFrequently: true });
+                        intervalRef.current = setInterval(() => {
+                            const video = videoRef.current;
+                            if (!video || video.readyState < 2 || !context || !streamRef.current)
+                                return;
+                            try {
+                                const w = video.videoWidth, h = video.videoHeight;
+                                if (!w || !h) return;
+                                canvas.width = w; canvas.height = h;
+                                context.drawImage(video, 0, 0, w, h);
+                                const frame = context.getImageData(0, 0, w, h);
+                                const qr = window.jsQR(frame.data, w, h, { inversionAttempts: "attemptBoth" });
+                                if (qr?.data) { stopCam(); onScan(qr.data); }
+                            }
+                            catch { }
+                        }, 350);
+                    }
+                }
+                catch (fallbackError) {
+                    setError(fallbackError.message + " Puedes usar la entrada manual.");
+                }
             }
         }
         catch (e) {
