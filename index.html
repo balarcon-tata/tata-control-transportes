@@ -17288,115 +17288,68 @@ function Spinner() {
 }
 // ── QR SCANNER ────────────────────────────────────────────────────────────────
 function QRScanner({ onScan, onClose, label, step }) {
-    const videoRef = (0, react_1.useRef)(null), streamRef = (0, react_1.useRef)(null), intervalRef = (0, react_1.useRef)(null);
-    const [error, setError] = (0, react_1.useState)(null);
-    const [scanning, setScanning] = (0, react_1.useState)(false);
-    const [manual, setManual] = (0, react_1.useState)("");
-    const [useManual, setUseManual] = (0, react_1.useState)(false);
-    const [camTried, setCamTried] = (0, react_1.useState)(false);
-    const stopCam = (0, react_1.useCallback)(() => {
-        if (intervalRef.current)
-            clearInterval(intervalRef.current);
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(t => t.stop());
-            streamRef.current = null;
-        }
-    }, []);
-    const startCamera = (0, react_1.useCallback)(async () => {
-        setError(null);
-        try {
-            // Try environment camera first (mobile back camera), fallback to any camera
-            let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
-            }
-            catch {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            }
-            streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                await videoRef.current.play();
-            }
-            setScanning(true);
-            setCamTried(true);
-            if ("BarcodeDetector" in window) {
-                const supported = typeof window.BarcodeDetector.getSupportedFormats === "function" ? await window.BarcodeDetector.getSupportedFormats() : ["qr_code"];
-                const formats = ["qr_code", "code_128", "code_39", "ean_13", "ean_8", "pdf417"].filter(f => supported.includes(f));
-                if (!formats.length)
-                    throw new Error("El lector de este navegador no admite el formato del gafete");
-                const det = new window.BarcodeDetector({ formats });
-                intervalRef.current = setInterval(async () => {
-                    if (!videoRef.current || videoRef.current.readyState < 2)
-                        return;
-                    try {
-                        const c = await det.detect(videoRef.current);
-                        if (c.length) {
-                            stopCam();
-                            onScan(c[0].rawValue);
-                        }
-                    }
-                    catch { }
-                }, 400);
-            }
-            else {
-                // Compatibilidad con navegadores sin BarcodeDetector (Firefox y algunos móviles).
-                try {
-                    if (!window.jsQR) {
-                        await new Promise((resolve, reject) => {
-                            const script = document.createElement("script");
-                            script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-                            script.onload = resolve;
-                            script.onerror = () => reject(new Error("No fue posible cargar el lector QR alternativo. Verifica tu conexión."));
-                            document.head.appendChild(script);
-                        });
-                    }
-                    if (window.jsQR) {
-                        const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d", { willReadFrequently: true });
-                        intervalRef.current = setInterval(() => {
-                            const video = videoRef.current;
-                            if (!video || video.readyState < 2 || !context || !streamRef.current)
-                                return;
-                            try {
-                                const w = video.videoWidth, h = video.videoHeight;
-                                if (!w || !h) return;
-                                canvas.width = w; canvas.height = h;
-                                context.drawImage(video, 0, 0, w, h);
-                                const frame = context.getImageData(0, 0, w, h);
-                                const qr = window.jsQR(frame.data, w, h, { inversionAttempts: "attemptBoth" });
-                                if (qr?.data) { stopCam(); onScan(qr.data); }
-                            }
-                            catch { }
-                        }, 350);
-                    }
-                }
-                catch (fallbackError) {
-                    setError(fallbackError.message + " Puedes usar la entrada manual.");
-                }
-            }
-        }
-        catch (e) {
-            setCamTried(true);
-            if (e.name === "NotAllowedError")
-                setError("Permiso de camara denegado. Permite el acceso en el navegador.");
-            else if (e.name === "NotFoundError")
-                setError("No se encontro camara en este dispositivo.");
-            else
-                setError("No se pudo acceder a la camara: " + e.message);
-        }
-    }, [stopCam, onScan]);
-    (0, react_1.useEffect)(() => {
-        if (!useManual) {
-            startCamera();
-        }
-        else {
-            stopCam();
-        }
-        return () => stopCam();
-    }, [useManual]);
-    const sc = [C.red, C.gray, C.grayMid][step - 1] || C.red;
-    return ((0, jsx_runtime_1.jsxs)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }, children: [(0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, borderRadius: 20, padding: "24px 20px", width: "min(92vw,380px)", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }, children: [(0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { width: 32, height: 32, borderRadius: "50%", background: sc, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, fontFamily: "monospace" }, children: step }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: sc, fontWeight: 700, letterSpacing: 2, fontFamily: "monospace" }, children: ["PASO ", step, " DE 4"] }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 12, color: C.text, marginTop: 1 }, children: label })] })] }), !useManual ? ((0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: [error && ((0, jsx_runtime_1.jsx)("div", { style: { background: C.dangerBg, color: C.danger, padding: "10px 12px", borderRadius: 8, fontSize: 11, lineHeight: 1.5 }, children: error })), !error && ((0, jsx_runtime_1.jsxs)("div", { style: { position: "relative", width: "100%", aspectRatio: "1", borderRadius: 12, overflow: "hidden", background: "#000" }, children: [(0, jsx_runtime_1.jsx)("video", { ref: videoRef, style: { width: "100%", height: "100%", objectFit: "cover" }, playsInline: true, muted: true }), [0, 1, 2, 3].map(i => ((0, jsx_runtime_1.jsx)("div", { style: { position: "absolute", width: 24, height: 24, top: i < 2 ? 8 : "auto", bottom: i >= 2 ? 8 : "auto", left: i % 2 === 0 ? 8 : "auto", right: i % 2 === 1 ? 8 : "auto", borderTop: i < 2 ? `3px solid ${sc}` : "none", borderBottom: i >= 2 ? `3px solid ${sc}` : "none", borderLeft: i % 2 === 0 ? `3px solid ${sc}` : "none", borderRight: i % 2 === 1 ? `3px solid ${sc}` : "none" } }, i))), scanning && (0, jsx_runtime_1.jsx)("div", { style: { position: "absolute", left: 8, right: 8, height: 2, background: sc, boxShadow: `0 0 8px ${sc}`, animation: "scanLine 2s linear infinite", top: "50%" } })] }))] })) : ((0, jsx_runtime_1.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 10 }, children: (0, jsx_runtime_1.jsx)("input", { autoFocus: true, value: manual, onChange: e => setManual(e.target.value), onKeyDown: e => e.key === "Enter" && manual.trim() && (stopCam(), onScan(manual.trim())), placeholder: "Ej: SCT-001", style: { border: `1.5px solid ${sc}`, borderRadius: 8, padding: "12px 14px", fontSize: 14, outline: "none", color: C.text, background: C.bg, fontFamily: "monospace" } }) })), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }, children: [(0, jsx_runtime_1.jsx)("button", { onClick: () => { setUseManual(v => !v); setError(null); }, style: { flex: 1, background: C.bg, border: `1.5px solid ${C.border}`, color: C.gray, borderRadius: 8, padding: "10px", fontSize: 12, cursor: "pointer" }, children: useManual ? "Camara" : "Manual" }), useManual && manual.trim() && ((0, jsx_runtime_1.jsx)("button", { onClick: () => { stopCam(); onScan(manual.trim()); }, style: { flex: 1, background: sc, color: "#fff", border: "none", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }, children: "Confirmar" })), (0, jsx_runtime_1.jsx)("button", { onClick: () => { stopCam(); onClose(); }, style: { flex: 1, background: C.bg, border: `1.5px solid ${C.danger}`, color: C.danger, borderRadius: 8, padding: "10px", fontSize: 12, cursor: "pointer" }, children: "Cancelar" })] })] }), (0, jsx_runtime_1.jsx)("style", { children: `@keyframes scanLine{0%{top:8%}50%{top:88%}100%{top:8%}}` })] }));
+ const idRef=(0,react_1.useRef)("tc-reader-"+Math.random().toString(36).slice(2));
+ const scannerRef=(0,react_1.useRef)(null);
+ const activeRef=(0,react_1.useRef)(true);
+ const doneRef=(0,react_1.useRef)(false);
+ const [error,setError]=(0,react_1.useState)("");
+ const [manual,setManual]=(0,react_1.useState)("");
+ const [useManual,setUseManual]=(0,react_1.useState)(false);
+ const [loading,setLoading]=(0,react_1.useState)(true);
+ const stop=async()=>{
+   const reader=scannerRef.current;scannerRef.current=null;
+   if(reader){try{if(reader.isScanning)await reader.stop();}catch(e){}try{reader.clear();}catch(e){}}
+ };
+ (0,react_1.useEffect)(()=>{
+   activeRef.current=true;doneRef.current=false;let disposed=false;
+   if(useManual){setLoading(false);return ()=>{activeRef.current=false;};}
+   setLoading(true);setError("");
+   (async()=>{
+      try{
+       if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("Este navegador no permite usar la cámara. Abre el enlace con HTTPS.");
+       if(!window.Html5Qrcode){
+         await new Promise((resolve,reject)=>{
+            const existing=document.querySelector('script[data-tc-scanner]');
+            if(existing && window.Html5Qrcode){resolve();return;}
+            const script=document.createElement("script");script.dataset.tcScanner="1";
+            script.src="./vendor/html5-qrcode.min.js?v=2";script.onload=resolve;
+            script.onerror=()=>reject(new Error("No se pudo cargar el lector de códigos. Actualiza la página."));
+            document.head.appendChild(script);
+         });
+       }
+       if(disposed)return;
+       if(!window.Html5Qrcode)throw new Error("No se pudo iniciar el lector.");
+       const fm=window.Html5QrcodeSupportedFormats;
+       const reader=new window.Html5Qrcode(idRef.current,{formatsToSupport:[fm.QR_CODE,fm.CODE_128,fm.CODE_39,fm.EAN_13,fm.EAN_8,fm.UPC_A,fm.PDF_417],verbose:false});
+       scannerRef.current=reader;
+       const callback=(value)=>{if(!activeRef.current||doneRef.current)return;doneRef.current=true;stop();onScan(value);};
+       try{
+         await reader.start({facingMode:"environment"},{fps:8,qrbox:{width:230,height:190},aspectRatio:1},callback,()=>{});
+       }catch(first){
+         if(disposed)return;
+         await reader.start({facingMode:"user"},{fps:8,qrbox:{width:230,height:190}},callback,()=>{});
+       }
+       if(!disposed)setLoading(false);
+      }catch(e){
+        if(!disposed){setLoading(false);setError(e.name==="NotAllowedError"?"Permite el uso de la cámara en los permisos del navegador.":e.message||"No se pudo iniciar la cámara.");}
+      }
+   })();
+   return ()=>{disposed=true;activeRef.current=false;stop();};
+ },[useManual]);
+ const accent="#982638";
+ return (0,jsx_runtime_1.jsx)("div",{style:{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:16},children:(0,jsx_runtime_1.jsxs)("div",{style:{background:"#fff",borderRadius:20,padding:20,width:"min(92vw,380px)",maxHeight:"92vh",overflowY:"auto"},children:[
+ (0,jsx_runtime_1.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:15},children:[
+ (0,jsx_runtime_1.jsx)("span",{style:{background:accent,color:"#fff",borderRadius:"50%",padding:"8px 12px"},children:step}),
+ (0,jsx_runtime_1.jsxs)("div",{children:[(0,jsx_runtime_1.jsx)("div",{style:{fontSize:11,color:accent,letterSpacing:2},children:"PASO "+step+" DE 4"}),(0,jsx_runtime_1.jsx)("div",{style:{fontSize:13},children:label})]})]}),
+ !useManual&&(0,jsx_runtime_1.jsxs)("div",{children:[
+ (0,jsx_runtime_1.jsx)("div",{id:idRef.current,style:{width:"100%",minHeight:error?0:250,overflow:"hidden",borderRadius:9}}),
+ loading&&(0,jsx_runtime_1.jsx)("p",{style:{fontSize:12,color:"#666",padding:8},children:"Iniciando cámara y lector..."}),
+ error&&(0,jsx_runtime_1.jsx)("div",{style:{padding:12,background:"#fee2e2",color:"#b91c1c",borderRadius:9,fontSize:12},children:error})]}),
+ useManual&&(0,jsx_runtime_1.jsx)("input",{value:manual,autoFocus:true,onChange:e=>setManual(e.target.value),onKeyDown:e=>{if(e.key==="Enter"&&manual.trim()){doneRef.current=true;onScan(manual.trim());}},placeholder:"Código del vehículo o gafete",style:{width:"100%",padding:12,border:"1px solid #ccc",borderRadius:8,fontSize:14}}),
+ (0,jsx_runtime_1.jsxs)("div",{style:{display:"flex",gap:8,marginTop:15},children:[
+ (0,jsx_runtime_1.jsx)("button",{onClick:()=>setUseManual(v=>!v),style:{flex:1,padding:10,borderRadius:8,border:"1px solid #ccc",background:"#fafafa"},children:useManual?"Cámara":"Manual"}),
+ useManual&&manual.trim()&&(0,jsx_runtime_1.jsx)("button",{onClick:()=>{doneRef.current=true;onScan(manual.trim());},style:{flex:1,padding:10,borderRadius:8,color:"#fff",background:accent},children:"Confirmar"}),
+ (0,jsx_runtime_1.jsx)("button",{onClick:()=>{stop();onClose();},style:{flex:1,padding:10,borderRadius:8,border:"1px solid "+accent,background:"#fff",color:accent},children:"Cancelar"})]})]})});
 }
 // ── BATTERY INPUT MODAL ───────────────────────────────────────────────────────
 function BatteryModal({ scooterId, currentBattery, onSave, onClose }) {
@@ -17597,7 +17550,7 @@ function App() {
             if (cancelled)
                 return;
             setCorporateHistory((result.historial || []).map(e => ({ id: e.id, tipo: e.tipo === "salida" ? "Salida" : "Ingreso", workerId: e.codigo, workerName: e.codigo,
-                location: e.planta, transport: e.modalidad, timestamp: e.marcado_at, scooterId: null, corporate: true })));
+                location: e.planta, transport: e.modalidad, timestamp: e.marcado_at, scooterId: e.vehiculo || null, battery: e.bateria ?? null, km: e.kilometraje ?? null, corporate: true })));
         }).catch(err => { if (!cancelled)
             showToast("Historial Supabase: " + err.message, "err"); });
         return () => { cancelled = true; };
@@ -17692,7 +17645,7 @@ function App() {
             setScanStep(null);
             setCorporateBusy(true);
             try {
-                const result = await tcApi("marcar", { codigo: code, planta: corporatePlant, modalidad: curReg.transport }, corporateAuth.token);
+                const result = await tcApi("marcar", { codigo: code, planta: corporatePlant, modalidad: curReg.transport, vehiculo: curReg.scooterId || null, bateria: curReg.battery ?? null, kilometraje: curReg.km ?? null }, corporateAuth.token);
                 const m = result.movimiento;
                 setCorporateResult(m);
                 showToast((m.tipo === "salida" ? "Salida" : "Llegada") + " guardada: " + m.nombre, "ok");
@@ -17890,7 +17843,7 @@ PRUEBA LOCAL · NO ES UNA ALERTA REAL`;
                             { label: "DISPONIBLES", val: scooters.filter(s => s.status === "disponible").length, color: C.green, icon: "OK" },
                             { label: "EN USO", val: scooters.filter(s => s.status === "en_uso").length, color: C.red, icon: "->" },
                             { label: "CARGANDO", val: scooters.filter(s => s.status === "cargando").length, color: C.blue, icon: "Z" },
-                        ].map(item => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 8px", textAlign: "center", flex: 1, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 22, fontWeight: 800, color: item.color, fontFamily: "monospace", lineHeight: 1 }, children: item.val }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, letterSpacing: 2, color: C.textDim, marginTop: 4, fontFamily: "monospace" }, children: item.label })] }, item.label))) }), activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", style: { margin: "12px 14px 0", background: C.dangerBg, border: `1.5px solid ${C.danger}`, borderRadius: 12, padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start" }, children: [(0, jsx_runtime_1.jsxs)("div", { style: { flex: 1 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.danger, fontWeight: 700, fontFamily: "monospace", marginBottom: 4 }, children: "DEMORAS DETECTADAS" }), activeAlerts.slice(0, 2).map(a => (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.gray, marginTop: 2 }, children: [(0, movements_1.movementLabel)(a.mode), " \u00B7 ", a.workerName, " (", a.workerId, ") \u00B7 ", a.minutesElapsed, " min desde ", a.from] }, a.id))] }), (0, jsx_runtime_1.jsx)("button", { onClick: () => setView("alerts_view"), style: { background: C.danger, color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 10, cursor: "pointer", flexShrink: 0 }, children: "VER" })] })), lowBattery.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.warnBg, border: `1px solid ${C.warn}`, borderRadius: 12, padding: "10px 14px" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.warn, fontWeight: 700, fontFamily: "monospace", marginBottom: 2 }, children: "BATERIA BAJA (<40%)" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.gray }, children: lowBattery.map(s => `${s.label} ${s.battery}%`).join(" - ") })] })), (0, jsx_runtime_1.jsx)(SectionTitle, { children: "Ubicacion por Planta" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 4 }, children: plantSummary.map(({ plant, scooters: ps, count }) => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 8px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 20, fontWeight: 800, color: count > 0 ? C.red : C.textDim, fontFamily: "monospace" }, children: count }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, color: C.textDim, fontFamily: "monospace", letterSpacing: 1, marginTop: 2, lineHeight: 1.4 }, children: plant.replace("Planta ", "").replace("Estacion de ", "Est. ").toUpperCase() }), ps.length > 0 && (0, jsx_runtime_1.jsx)("div", { style: { marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }, children: ps.map(s => (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, color: C.red, fontFamily: "monospace" }, children: s.id }, s.id)) })] }, plant))) }), (0, jsx_runtime_1.jsx)(SectionTitle, { children: "Estado de Flota" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px" }, children: scooters.map(s => ((0, jsx_runtime_1.jsxs)(Card, { accent: s.status === "disponible" ? C.green : s.status === "en_uso" ? C.red : C.blue, children: [(0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" }, children: [(0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 14, fontWeight: 700 }, children: s.label }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textDim, fontFamily: "monospace", marginTop: 1 }, children: s.id })] }), (0, jsx_runtime_1.jsx)(Badge, { status: s.status })] }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.textDim }, children: s.location ? `${s.location}` : "sin ubicacion" }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [['camion', 'tuctuc'].includes(s.tipo) ? (0, jsx_runtime_1.jsxs)("span", { style: { fontSize: 11, color: C.textDim }, children: [s.km ?? '—', " km"] }) : (0, jsx_runtime_1.jsx)(Battery, { pct: s.battery, showAlert: true }), canAdmin && !['camion', 'tuctuc'].includes(s.tipo) && ((0, jsx_runtime_1.jsx)("button", { onClick: () => setBatteryModal({ scooterId: s.id, currentBattery: s.battery }), style: { background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, cursor: "pointer", color: C.gray }, children: "Editar" }))] })] })] }, s.id))) }), events.length > 0 && (0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SectionTitle, { children: "Ultimos Eventos" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px" }, children: events.slice(0, 5).map(e => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [(0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { width: 8, height: 8, borderRadius: "50%", background: TIPO_CLR[e.tipo] || C.grayMid } }), (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 12, fontWeight: 700, color: TIPO_CLR[e.tipo] }, children: e.tipo }), e.battery && (0, jsx_runtime_1.jsxs)("span", { style: { fontSize: 10, color: C.textDim, fontFamily: "monospace" }, children: [e.battery, "%"] })] }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.textDim, marginTop: 3 }, children: [e.scooterId || 'A pie', " \u00B7 ", e.workerName || e.workerId] }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textLight, marginTop: 1 }, children: e.location })] }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, fontFamily: "monospace" }, children: fmtTime(e.timestamp) }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 9, color: C.textDim, marginTop: 2 }, children: timeAgo(e.timestamp) })] })] }, e.id))) })] })] })), view === "register" && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", style: { padding: "0 14px 14px" }, children: [(0, jsx_runtime_1.jsx)(SectionTitle, { children: "Nuevo Registro" }), corporate ? (0, jsx_runtime_1.jsxs)(Card, { accent: C.green, style: { marginBottom: 12 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.green, marginBottom: 7 }, children: "MARCAJES CORPORATIVOS ACTIVOS" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.textDim, marginBottom: 10 }, children: "Selecciona tu planta al iniciar turno; c\u00E1mbiala aqu\u00ED cuando te traslades. El gafete se registrar\u00E1 autom\u00E1ticamente en Supabase." }), (0, jsx_runtime_1.jsx)("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }, children: TC_PLANTS.map(p => (0, jsx_runtime_1.jsx)("button", { type: "button", "aria-pressed": corporatePlant === p, onClick: () => { setCorporatePlant(p); setCorporateResult(null); }, style: { fontSize: 11, padding: "12px 7px", borderRadius: 9, background: corporatePlant === p ? C.greenBg : C.bgWhite, border: `2px solid ${corporatePlant === p ? C.green : C.border}`, fontWeight: 750, color: C.text, cursor: "pointer" }, children: p }, p)) }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: corporatePlant ? C.green : C.danger, marginTop: 8, fontWeight: 700 }, children: corporatePlant ? "Marcando desde: " + corporatePlant : "Selecciona una planta para habilitar escaneo" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textDim, marginTop: 6 }, children: "Los datos de flota y bater\u00EDa siguen siendo demostrativos; no se guardan a\u00FAn en Supabase." })] }) : (0, jsx_runtime_1.jsx)("div", { style: { background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 11, color: C.blue }, children: "MODO DEMOSTRACI\u00D3N LOCAL \u00B7 No registra gafetes del personal real." }), corporate && corporateResult && (0, jsx_runtime_1.jsxs)(Card, { accent: C.green, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.green }, children: corporateResult.tipo === "salida" ? "SALIDA REGISTRADA" : "LLEGADA REGISTRADA" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 14, fontWeight: 700, marginTop: 4 }, children: corporateResult.nombre }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.textDim, marginTop: 4 }, children: [corporateResult.codigo, " \u00B7 ", corporateResult.puesto || "Sin puesto", " \u00B7 ", corporateResult.departamento || "Sin departamento"] })] }), (() => {
+                        ].map(item => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 8px", textAlign: "center", flex: 1, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 22, fontWeight: 800, color: item.color, fontFamily: "monospace", lineHeight: 1 }, children: item.val }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, letterSpacing: 2, color: C.textDim, marginTop: 4, fontFamily: "monospace" }, children: item.label })] }, item.label))) }), activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", style: { margin: "12px 14px 0", background: C.dangerBg, border: `1.5px solid ${C.danger}`, borderRadius: 12, padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start" }, children: [(0, jsx_runtime_1.jsxs)("div", { style: { flex: 1 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.danger, fontWeight: 700, fontFamily: "monospace", marginBottom: 4 }, children: "DEMORAS DETECTADAS" }), activeAlerts.slice(0, 2).map(a => (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.gray, marginTop: 2 }, children: [(0, movements_1.movementLabel)(a.mode), " \u00B7 ", a.workerName, " (", a.workerId, ") \u00B7 ", a.minutesElapsed, " min desde ", a.from] }, a.id))] }), (0, jsx_runtime_1.jsx)("button", { onClick: () => setView("alerts_view"), style: { background: C.danger, color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 10, cursor: "pointer", flexShrink: 0 }, children: "VER" })] })), lowBattery.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.warnBg, border: `1px solid ${C.warn}`, borderRadius: 12, padding: "10px 14px" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.warn, fontWeight: 700, fontFamily: "monospace", marginBottom: 2 }, children: "BATERIA BAJA (<40%)" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.gray }, children: lowBattery.map(s => `${s.label} ${s.battery}%`).join(" - ") })] })), (0, jsx_runtime_1.jsx)(SectionTitle, { children: "Ubicacion por Planta" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 4 }, children: plantSummary.map(({ plant, scooters: ps, count }) => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 8px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 20, fontWeight: 800, color: count > 0 ? C.red : C.textDim, fontFamily: "monospace" }, children: count }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, color: C.textDim, fontFamily: "monospace", letterSpacing: 1, marginTop: 2, lineHeight: 1.4 }, children: plant.replace("Planta ", "").replace("Estacion de ", "Est. ").toUpperCase() }), ps.length > 0 && (0, jsx_runtime_1.jsx)("div", { style: { marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }, children: ps.map(s => (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 8, color: C.red, fontFamily: "monospace" }, children: s.id }, s.id)) })] }, plant))) }), (0, jsx_runtime_1.jsx)(SectionTitle, { children: "Estado de Flota" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px" }, children: scooters.map(s => ((0, jsx_runtime_1.jsxs)(Card, { accent: s.status === "disponible" ? C.green : s.status === "en_uso" ? C.red : C.blue, children: [(0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" }, children: [(0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 14, fontWeight: 700 }, children: s.label }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textDim, fontFamily: "monospace", marginTop: 1 }, children: s.id })] }), (0, jsx_runtime_1.jsx)(Badge, { status: s.status })] }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.textDim }, children: s.location ? `${s.location}` : "sin ubicacion" }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [['camion', 'tuctuc'].includes(s.tipo) ? (0, jsx_runtime_1.jsxs)("span", { style: { fontSize: 11, color: C.textDim }, children: [s.km ?? '—', " km"] }) : (0, jsx_runtime_1.jsx)(Battery, { pct: s.battery, showAlert: true }), canAdmin && !['camion', 'tuctuc'].includes(s.tipo) && ((0, jsx_runtime_1.jsx)("button", { onClick: () => setBatteryModal({ scooterId: s.id, currentBattery: s.battery }), style: { background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, cursor: "pointer", color: C.gray }, children: "Editar" }))] })] })] }, s.id))) }), events.length > 0 && (0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SectionTitle, { children: "Ultimos Eventos" }), (0, jsx_runtime_1.jsx)("div", { style: { padding: "0 14px" }, children: events.slice(0, 5).map(e => ((0, jsx_runtime_1.jsxs)("div", { style: { background: C.bgWhite, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [(0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { width: 8, height: 8, borderRadius: "50%", background: TIPO_CLR[e.tipo] || C.grayMid } }), (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 12, fontWeight: 700, color: TIPO_CLR[e.tipo] }, children: e.tipo }), e.battery && (0, jsx_runtime_1.jsxs)("span", { style: { fontSize: 10, color: C.textDim, fontFamily: "monospace" }, children: [e.battery, "%"] })] }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.textDim, marginTop: 3 }, children: [e.scooterId || 'A pie', " \u00B7 ", e.workerName || e.workerId] }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textLight, marginTop: 1 }, children: e.location })] }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right" }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, fontFamily: "monospace" }, children: fmtTime(e.timestamp) }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 9, color: C.textDim, marginTop: 2 }, children: timeAgo(e.timestamp) })] })] }, e.id))) })] })] })), view === "register" && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", style: { padding: "0 14px 14px" }, children: [(0, jsx_runtime_1.jsx)(SectionTitle, { children: "Nuevo Registro" }), corporate ? (0, jsx_runtime_1.jsxs)(Card, { accent: C.green, style: { marginBottom: 12 }, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.green, marginBottom: 7 }, children: "MARCAJES CORPORATIVOS ACTIVOS" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.textDim, marginBottom: 10 }, children: "Selecciona tu planta al iniciar turno; c\u00E1mbiala aqu\u00ED cuando te traslades. El gafete se registrar\u00E1 autom\u00E1ticamente en Supabase." }), (0, jsx_runtime_1.jsx)("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }, children: TC_PLANTS.map(p => (0, jsx_runtime_1.jsx)("button", { type: "button", "aria-pressed": corporatePlant === p, onClick: () => { setCorporatePlant(p); setCorporateResult(null); }, style: { fontSize: 11, padding: "12px 7px", borderRadius: 9, background: corporatePlant === p ? C.greenBg : C.bgWhite, border: `2px solid ${corporatePlant === p ? C.green : C.border}`, fontWeight: 750, color: C.text, cursor: "pointer" }, children: p }, p)) }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: corporatePlant ? C.green : C.danger, marginTop: 8, fontWeight: 700 }, children: corporatePlant ? "Marcando desde: " + corporatePlant : "Selecciona una planta para habilitar escaneo" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.textDim, marginTop: 6 }, children: "El veh\u00EDculo, la bater\u00EDa y el kilometraje del registro se guardan en Supabase." })] }) : (0, jsx_runtime_1.jsx)("div", { style: { background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 11, color: C.blue }, children: "MODO DEMOSTRACI\u00D3N LOCAL \u00B7 No registra gafetes del personal real." }), corporate && corporateResult && (0, jsx_runtime_1.jsxs)(Card, { accent: C.green, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.green }, children: corporateResult.tipo === "salida" ? "SALIDA REGISTRADA" : "LLEGADA REGISTRADA" }), (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 14, fontWeight: 700, marginTop: 4 }, children: corporateResult.nombre }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 11, color: C.textDim, marginTop: 4 }, children: [corporateResult.codigo, " \u00B7 ", corporateResult.puesto || "Sin puesto", " \u00B7 ", corporateResult.departamento || "Sin departamento"] })] }), (() => {
                         const useKm = curReg.transport === "camion" || curReg.transport === "tuctuc";
                         const steps = !curReg.transport || curReg.transport === "pie"
                             ? ["TIPO", "TRABAJADOR", ...(corporate ? [] : ["PLANTA"])]
