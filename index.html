@@ -18118,7 +18118,7 @@ exports.deleteDoc = exports.addDoc = exports.updateDoc = exports.setDoc = export
 const STORAGE = 'tata_transportes_v4_demo';
 const starter = {
     scooters: { 'SCT-001': { id: 'SCT-001', label: 'Scooter 01', status: 'en_uso', location: 'Planta Cinturones', battery: 85, tipo: 'scooter' }, 'SCT-002': { id: 'SCT-002', label: 'Scooter 02', status: 'disponible', location: 'Planta Fajas', battery: 64, tipo: 'scooter' }, 'SCT-003': { id: 'SCT-003', label: 'Scooter 03', status: 'disponible', location: 'Planta Cinturones', battery: 58, tipo: 'scooter' }, 'SCT-004': { id: 'SCT-004', label: 'Scooter 04', status: 'disponible', location: 'Planta Fajas', battery: 70, tipo: 'scooter' }, 'SCT-005': { id: 'SCT-005', label: 'Scooter 05', status: 'disponible', location: 'Planta Cinturones', battery: 49, tipo: 'scooter' }, 'SCT-006': { id: 'SCT-006', label: 'Scooter 06', status: 'disponible', location: 'Planta Fajas', battery: 95, tipo: 'scooter' }, 'CAM-001': { id: 'CAM-001', label: 'Camión de prueba', status: 'disponible', location: 'Planta Cinturones', battery: 100, km: 1354, tipo: 'camion' }, 'TUC-001': { id: 'TUC-001', label: 'Tuc tuc de prueba', status: 'disponible', location: 'Planta Fajas', battery: 100, km: 87, tipo: 'tuctuc' } },
-    users: { 'USR-ADMIN': { id: 'USR-ADMIN', name: 'Admin DEMO', role: 'admin', pin: '1234', active: true }, 'USR-G001': { id: 'USR-G001', name: 'Guardia DEMO', role: 'guardia', pin: '1111', active: true } },
+    users: { 'USR-ADMIN': { id: 'USR-ADMIN', name: 'Admin DEMO', role: 'admin', pin: '1234', active: true }, 'USR-G001': { id: 'USR-G001', name: 'Guardia 1', role: 'guardia', pin: '1111', active: true }, 'USR-G002': { id: 'USR-G002', name: 'Guardia 2', role: 'guardia', pin: '2222', active: true } },
     personnel: { '000123': { id: '000123', code: '000123', name: 'Colaborador de prueba', active: true }, '000124': { id: '000124', code: '000124', name: 'Colaborador Demo B', active: true } },
     events: {
         'DEMO-S1': { id: 'DEMO-S1', tipo: 'Salida', transport: 'scooter', scooterId: 'SCT-001', workerId: '000123', workerName: 'Colaborador de prueba', location: 'Planta Cinturones', expectedTo: 'Planta Fajas', limitMinutesPlanned: 7, timestamp: new Date(Date.now() - 11 * 60000).toISOString(), registeredByName: 'Guardia DEMO' },
@@ -18129,6 +18129,10 @@ const starter = {
 let state;
 try {
     state = { ...structuredClone(starter), ...JSON.parse(localStorage.getItem(STORAGE) || '{}') };
+    // Conservar los datos del navegador y actualizar cuentas de prueba existentes.
+    state.users = { ...starter.users, ...(state.users || {}) };
+    if (state.users['USR-G001']?.name === 'Guardia DEMO') state.users['USR-G001'] = { ...state.users['USR-G001'], name: 'Guardia 1' };
+    if (!state.users['USR-G002']) state.users['USR-G002'] = { ...starter.users['USR-G002'] };
 }
 catch {
     state = structuredClone(starter);
