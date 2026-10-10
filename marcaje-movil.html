@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8c2333"><meta http-equiv="Cache-Control" content="no-store">
+<title>TATA | Marcajes móviles</title>
+<style>
+:root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2937;background:#f5f6f8;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;min-height:100svh;background:#f5f6f8}
+header{background:#8c2333;color:white;padding:18px 18px 14px;position:sticky;top:0;z-index:10;box-shadow:0 2px 5px #0002}
+header strong{font-size:18px;letter-spacing:.8px}header small{display:block;opacity:.86;margin-top:4px}
+main{padding:16px 14px 38px;max-width:580px;margin:auto}.card{background:white;border-radius:16px;padding:18px;margin-bottom:14px;border:1px solid #e5e7eb;box-shadow:0 2px 7px #00000008}
+h2{font-size:17px;margin:0 0 14px}p{font-size:13px;line-height:1.5;color:#64748b;margin:8px 0 16px}
+label{display:block;font-size:12px;color:#475569;font-weight:700;margin-bottom:6px}
+input,select{border:1.5px solid #cbd5e1;background:#fff;border-radius:10px;width:100%;font:inherit;font-size:16px;padding:13px;margin:0 0 14px;color:#111827}
+input:focus,select:focus{outline:2px solid #8c2333;outline-offset:0}
+button{border:0;border-radius:10px;padding:13px 16px;font:inherit;font-size:14px;font-weight:700;min-height:45px;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.primary{color:white;background:#8c2333;width:100%}.secondary{background:#f3f4f6;color:#374151;border:1px solid #d1d5db}
+.controls{display:flex;gap:9px}.controls>*{flex:1}.plants{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 16px}
+.plants button{padding:16px 8px;text-align:center;border:2px solid #e5e7eb;background:#fff;min-height:68px}
+.plants button.active{border-color:#8c2333;background:#fff0f2;color:#8c2333}
+.hint{font-size:12px;color:#64748b;margin-bottom:12px}.tag{display:inline-block;font-size:11px;padding:4px 9px;border-radius:20px;background:#f3f4f6;color:#475569;font-weight:700}
+#status{border-radius:11px;padding:13px;font-size:13px;line-height:1.5;background:#f1f5f9;display:none;margin-bottom:14px;overflow-wrap:anywhere}
+#status.ok{background:#ecfdf5;color:#065f46;display:block}#status.err{background:#fef2f2;color:#991b1b;display:block}#status.info{background:#eff6ff;color:#1e40af;display:block}
+#cameraWrap{display:none;position:relative;margin:10px 0 14px;background:#111827;border-radius:12px;overflow:hidden}
+#cameraWrap video{width:100%;max-height:290px;object-fit:cover;display:block}
+#cameraWrap span{position:absolute;bottom:8px;left:8px;right:8px;text-align:center;background:#0009;color:white;font-size:12px;padding:7px;border-radius:7px}
+#badge{font-size:22px;font-weight:750;text-align:center;letter-spacing:1px}
+#day{margin:0}.history{padding:0;list-style:none;margin:10px 0 0}.history li{padding:13px 0;border-bottom:1px solid #e5e7eb;font-size:13px}.history li:last-child{border-bottom:0}
+.small{font-size:12px;color:#64748b;margin-top:3px}
+#login,#work{display:none}#identity{color:white;font-size:11px;float:right;opacity:.9}
+.footer{font-size:11px;color:#64748b;text-align:center;padding:14px 0}
+a{color:#8c2333} .hidden{display:none!important}
+</style>
+</head>
+<body><header><span id="identity"></span><strong>TATA | TRANSPORTES</strong><small>Marcajes móviles · Supabase</small></header>
+<main>
+<section id="login" class="card">
+<h2>Iniciar turno</h2><p>Accede con la cuenta corporativa autorizada para registrar movimientos. No se descarga el catálogo completo de empleados.</p>
+<form id="loginForm" autocomplete="on">
+<label for="email">Correo corporativo</label><input id="email" name="username" type="email" placeholder="usuario@tata.com.gt" autocomplete="username" required>
+<label for="password">Contraseña</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<button id="loginBtn" class="primary" type="submit">Ingresar</button>
+</form>
+</section>
+<section id="work">
+<div class="card">
+<div class="controls" style="align-items:center;justify-content:space-between"><h2 style="margin:0">Ubicación del turno</h2><button id="logoutBtn" type="button" class="secondary">Salir</button></div>
+<p>Selecciona dónde estás realizando los marcajes. Si cambias de planta, actualízala aquí.</p>
+<div class="plants"><button type="button" data-planta="Planta Cinturones">🏭 Planta Cinturones</button><button type="button" data-planta="Planta Fajas">🏭 Planta Fajas</button></div>
+<div id="plantaLabel" class="hint">No se ha seleccionado planta.</div>
+<label for="modalidad">Transporte habitual para salidas</label>
+<select id="modalidad"><option value="pie">A pie</option><option value="scooter">Scooter</option><option value="camion">Camión</option><option value="tuctuc">Tuc tuc</option></select>
+</div>
+<div class="card">
+<h2>Escanear gafete</h2>
+<p>El sistema identifica al empleado mediante Supabase y registra automáticamente la salida o llegada según el último movimiento abierto.</p>
+<div id="cameraWrap"><video id="camera" autoplay muted playsinline></video><span>Coloca el QR o código de barras del gafete frente a la cámara</span></div>
+<div class="controls" style="margin-bottom:14px">
+<button id="scanBtn" type="button" class="primary">📷 Abrir cámara</button>
+<button id="stopBtn" type="button" class="secondary hidden">Cerrar cámara</button>
+</div>
+<label for="badge">Código del gafete (alternativa manual)</label>
+<form id="markForm"><input id="badge" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Escanea o escribe el código" required>
+<button id="markBtn" class="primary" type="submit">Registrar movimiento</button></form>
+</div>
+<div class="card"><h2>Historial por día</h2><label for="day">Seleccionar fecha</label>
+<div class="controls"><input id="day" type="date" required><button id="refreshBtn" class="secondary" type="button">Consultar</button></div>
+<div id="historyCount" class="hint" style="margin-top:12px"></div>
+<ul id="history" class="history"></ul>
+</div>
+</section>
+<div id="status" role="status" aria-live="polite"></div>
+<div class="footer">Acceso restringido a personal autorizado · No se envían datos a Teams desde esta pantalla.<br><a href="./">Volver a la aplicación original</a></div>
+</main>
+<script>
+'use strict';
+const ENDPOINT='https://ezhlltgcqektrclgzhfi.supabase.co/functions/v1/tc-movil';
+const $=(id)=>document.getElementById(id);
+let token=null,expires=0,planta='',stream=null,scanTimer=null,busy=false;
+const buttonBusy=(id,state,label)=>{const b=$(id); b.disabled=state;if(label)b.textContent=label;};
+function notice(msg,type='info'){const n=$('status');n.className=type;n.textContent=msg;n.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function showLogin(){$('login').style.display='block';$('work').style.display='none';$('identity').textContent='';}
+function showWork(profile){$('login').style.display='none';$('work').style.display='block';$('identity').textContent=profile.nombre||profile.rol;$('password').value='';}
+function localDay(d=new Date()){const p=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Guatemala',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);const k=Object.fromEntries(p.map(x=>[x.type,x.value]));return k.year+'-'+k.month+'-'+k.day;}
+$('day').value=localDay();
+async function api(action,data={},authenticated=true){
+  if(authenticated&&(!token||Date.now()>=(expires-30000))){token=null;showLogin();throw Error('Tu sesión ha expirado. Inicia sesión otra vez.');}
+  let resp;
+  try{resp=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json',...(authenticated?{'Authorization':'Bearer '+token}:{})},body:JSON.stringify({action,...data}),cache:'no-store'});}
+  catch{throw Error('Sin conexión al servidor. Verifica el internet del celular.');}
+  let result;try{result=await resp.json();}catch{throw Error('Respuesta no válida del servidor.');}
+  if(!resp.ok){if(resp.status===401){token=null;showLogin();}throw Error(result.error||'Error de operación ('+resp.status+')');}
+  return result;
+}
+$('loginForm').addEventListener('submit',async(e)=>{
+  e.preventDefault();buttonBusy('loginBtn',true,'Ingresando…');
+  try{const r=await api('login',{email:$('email').value,password:$('password').value},false);
+    token=r.token;expires=Number(r.expires_at)*1000;showWork(r.perfil);notice('Sesión iniciada. Selecciona tu planta antes de escanear.','ok');
+    await getHistory();
+  }catch(err){notice(err.message,'err');}finally{buttonBusy('loginBtn',false,'Ingresar');}
+});
+const plants=[...document.querySelectorAll('[data-planta]')];
+plants.forEach(b=>b.addEventListener('click',()=>{
+  planta=b.dataset.planta;plants.forEach(x=>x.classList.toggle('active',x===b));
+  $('plantaLabel').textContent='Marcando desde: '+planta;notice('Ubicación del turno: '+planta,'ok');
+}));
+$('logoutBtn').addEventListener('click',()=>{stopCamera();token=null;expires=0;planta='';plants.forEach(x=>x.classList.remove('active'));$('plantaLabel').textContent='No se ha seleccionado planta.';showLogin();notice('Sesión cerrada.','info');});
+async function registrar(code){
+ if(busy)return;
+ if(!planta){notice('Antes de escanear, selecciona Planta Cinturones o Planta Fajas.','err');return;}
+ code=String(code||'').trim();if(!/^[0-9]{1,8}$/.test(code)){notice('El gafete debe contener un código numérico válido.','err');return;}
+ busy=true;buttonBusy('markBtn',true,'Registrando…');
+ try{const res=await api('marcar',{codigo:code,planta,modalidad:$('modalidad').value});
+ const r=res.movimiento||{};
+ notice((r.tipo==='salida'?'SALIDA':'LLEGADA')+' registrada: '+(r.nombre||code)+' · '+(r.departamento||'Sin departamento')+' · '+(r.planta||planta)+' · '+new Date(r.fecha).toLocaleTimeString('es-GT',{timeZone:'America/Guatemala'}),'ok');
+ $('badge').value='';await getHistory();
+ }catch(err){notice(err.message,'err');}finally{busy=false;buttonBusy('markBtn',false,'Registrar movimiento');}
+}
+$('markForm').addEventListener('submit',e=>{e.preventDefault();registrar($('badge').value);});
+async function getHistory(){
+ const day=$('day').value;if(!day)return;
+ buttonBusy('refreshBtn',true,'Cargando…');
+ try{const r=await api('historial',{dia:day});const list=$('history');
+   list.replaceChildren();(r.historial||[]).forEach(row=>{const li=document.createElement('li');const title=document.createElement('strong');title.textContent=(row.tipo==='salida'?'↗ SALIDA':'↙ LLEGADA')+' · '+row.codigo;
+   const det=document.createElement('div');det.className='small';det.textContent=row.planta+' · '+(row.modalidad||'')+' · '+new Date(row.marcado_at).toLocaleString('es-GT',{timeZone:'America/Guatemala',hour:'2-digit',minute:'2-digit'});li.append(title,det);list.append(li);});
+   $('historyCount').textContent=(r.total||0)+' movimiento(s) registrados en esta fecha'+(r.limitado?' (límite de consulta alcanzado)':'');
+ }catch(err){notice(err.message,'err');}finally{buttonBusy('refreshBtn',false,'Consultar');}
+}
+$('refreshBtn').addEventListener('click',getHistory);
+$('day').addEventListener('change',getHistory);
+function stopCamera(){if(scanTimer){clearInterval(scanTimer);scanTimer=null;}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  $('cameraWrap').style.display='none';$('scanBtn').classList.remove('hidden');$('stopBtn').classList.add('hidden');$('camera').srcObject=null;}
+$('stopBtn').addEventListener('click',stopCamera);
+$('scanBtn').addEventListener('click',async()=>{
+ if(!planta){notice('Selecciona primero tu planta.','err');return;}
+ if(!('BarcodeDetector' in window)){notice('Este navegador no admite lectura de QR con su detector integrado. Puedes ingresar el código manualmente. Para cámara prueba Chrome en Android.','err');return;}
+ let detector;try{const supported=await BarcodeDetector.getSupportedFormats();
+   const formats=['qr_code','code_128','code_39','ean_13','ean_8','pdf417'].filter(x=>supported.includes(x));
+   if(!formats.length)throw Error('Formato de gafete no compatible');detector=new BarcodeDetector({formats});
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+   const video=$('camera');video.srcObject=stream;await video.play();
+   $('cameraWrap').style.display='block';$('scanBtn').classList.add('hidden');$('stopBtn').classList.remove('hidden');
+   notice('Cámara activa. Enfoca el gafete para registrar el movimiento.','info');
+   let reading=false;
+   scanTimer=setInterval(async()=>{if(reading||busy||!stream||video.readyState<2)return;reading=true;
+      try{const codes=await detector.detect(video);if(codes.length){const v=String(codes[0].rawValue||'').trim();stopCamera();$('badge').value=v;await registrar(v);}}
+      catch{}finally{reading=false;}},350);
+ }catch(err){stopCamera();notice('No se pudo abrir la cámara: '+err.message+'. Puedes introducir el código manualmente.','err');}
+});
+window.addEventListener('beforeunload',stopCamera);
+showLogin();
+</script></body></html>
