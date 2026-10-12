@@ -17689,7 +17689,8 @@ function App() {
                 const m = result.movimiento;
                 setCorporateResult(m);
                 setCorporateScanError(null);
-                showToast((m.tipo === "salida" ? "Salida" : "Llegada") + " guardada: " + m.nombre, "ok");
+                const incidencias = Array.isArray(m.incidencias) ? m.incidencias : [];
+                showToast(m.tipo === "duplicado" ? "Escaneo repetido: ya está registrado" : ((m.tipo === "salida" ? "Salida" : "Llegada") + " guardada: " + m.nombre + (incidencias.length ? " · Incidencia notificada" : "")), "ok");
                 setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null });
             }
             catch (err) {
