@@ -18164,11 +18164,10 @@ exports.deleteDoc = exports.addDoc = exports.updateDoc = exports.setDoc = export
 // Motor de DEMOSTRACIÓN local. No solicita red ni inicializa Firebase.
 const STORAGE = 'tata_transportes_v4_demo';
 const starter = {
-    scooters: { 'SCT-001': { id: 'SCT-001', label: 'Scooter 01', status: 'en_uso', location: 'Planta Cinturones', battery: 85, tipo: 'scooter' }, 'SCT-002': { id: 'SCT-002', label: 'Scooter 02', status: 'disponible', location: 'Planta Fajas', battery: 64, tipo: 'scooter' }, 'SCT-003': { id: 'SCT-003', label: 'Scooter 03', status: 'disponible', location: 'Planta Cinturones', battery: 58, tipo: 'scooter' }, 'SCT-004': { id: 'SCT-004', label: 'Scooter 04', status: 'disponible', location: 'Planta Fajas', battery: 70, tipo: 'scooter' }, 'SCT-005': { id: 'SCT-005', label: 'Scooter 05', status: 'disponible', location: 'Planta Cinturones', battery: 49, tipo: 'scooter' }, 'SCT-006': { id: 'SCT-006', label: 'Scooter 06', status: 'disponible', location: 'Planta Fajas', battery: 95, tipo: 'scooter' }, 'CAM-001': { id: 'CAM-001', label: 'Camión de prueba', status: 'disponible', location: 'Planta Cinturones', battery: 100, km: 1354, tipo: 'camion' }, 'TUC-001': { id: 'TUC-001', label: 'Tuc tuc de prueba', status: 'disponible', location: 'Planta Fajas', battery: 100, km: 87, tipo: 'tuctuc' } },
+    scooters: { 'SCT-001': { id: 'SCT-001', label: 'Scooter 01', status: 'disponible', location: 'Planta Cinturones', battery: 85, tipo: 'scooter' }, 'SCT-002': { id: 'SCT-002', label: 'Scooter 02', status: 'disponible', location: 'Planta Fajas', battery: 64, tipo: 'scooter' }, 'SCT-003': { id: 'SCT-003', label: 'Scooter 03', status: 'disponible', location: 'Planta Cinturones', battery: 58, tipo: 'scooter' }, 'SCT-004': { id: 'SCT-004', label: 'Scooter 04', status: 'disponible', location: 'Planta Fajas', battery: 70, tipo: 'scooter' }, 'SCT-005': { id: 'SCT-005', label: 'Scooter 05', status: 'disponible', location: 'Planta Cinturones', battery: 49, tipo: 'scooter' }, 'SCT-006': { id: 'SCT-006', label: 'Scooter 06', status: 'disponible', location: 'Planta Fajas', battery: 95, tipo: 'scooter' }, 'CAM-001': { id: 'CAM-001', label: 'Camión de prueba', status: 'disponible', location: 'Planta Cinturones', battery: 100, km: 1354, tipo: 'camion' }, 'TUC-001': { id: 'TUC-001', label: 'Tuc tuc de prueba', status: 'disponible', location: 'Planta Fajas', battery: 100, km: 87, tipo: 'tuctuc' } },
     users: { 'USR-ADMIN': { id: 'USR-ADMIN', name: 'Admin DEMO', role: 'admin', pin: '1234', active: true }, 'USR-G001': { id: 'USR-G001', name: 'Guardia 1', role: 'guardia', pin: '1111', active: true }, 'USR-G002': { id: 'USR-G002', name: 'Guardia 2', role: 'guardia', pin: '2222', active: true } },
     personnel: { '000123': { id: '000123', code: '000123', name: 'Colaborador de prueba', active: true }, '000124': { id: '000124', code: '000124', name: 'Colaborador Demo B', active: true } },
     events: {
-        'DEMO-S1': { id: 'DEMO-S1', tipo: 'Salida', transport: 'scooter', scooterId: 'SCT-001', workerId: '000123', workerName: 'Colaborador de prueba', location: 'Planta Cinturones', expectedTo: 'Planta Fajas', limitMinutesPlanned: 7, timestamp: new Date(Date.now() - 11 * 60000).toISOString(), registeredByName: 'Guardia DEMO' },
         'DEMO-P1': { id: 'DEMO-P1', tipo: 'Salida', transport: 'pie', scooterId: null, workerId: '000124', workerName: 'Colaborador Demo B', location: 'Planta Fajas', expectedTo: 'Planta Cinturones', limitMinutesPlanned: 15, timestamp: new Date(Date.now() - 32 * 60000).toISOString(), registeredByName: 'Guardia DEMO' },
         'DEMO-P2': { id: 'DEMO-P2', tipo: 'Ingreso', transport: 'pie', scooterId: null, workerId: '000124', workerName: 'Colaborador Demo B', location: 'Planta Cinturones', timestamp: new Date(Date.now() - 20 * 60000).toISOString(), registeredByName: 'Guardia DEMO', linkedDepartureId: 'DEMO-P1' },
     }, alerts: {}, settings: {}
@@ -18183,6 +18182,19 @@ try {
 }
 catch {
     state = structuredClone(starter);
+}
+// Limpiar exclusivamente el marcaje ficticio obsoleto DEMO-S1 guardado
+// en navegadores anteriores. No afectar movimientos reales ni otros demos.
+const staleDemoEvent = state.events?.['DEMO-S1'];
+if (staleDemoEvent?.workerId === '000123' && staleDemoEvent?.scooterId === 'SCT-001') {
+    delete state.events['DEMO-S1'];
+    if (state.scooters?.['SCT-001']?.status === 'en_uso' &&
+        !Object.values(state.events).some(e => e.scooterId === 'SCT-001')) {
+        state.scooters['SCT-001'] = { ...state.scooters['SCT-001'], status: 'disponible' };
+    }
+    try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch (e) {
+        console.warn('La limpieza del movimiento DEMO-S1 no pudo guardarse en este navegador', e);
+    }
 }
 const listeners = new Set();
 const save = col => { try {
