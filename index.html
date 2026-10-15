@@ -1,4 +1,14 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes | Registro original unificado</title><style>*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes</title>
+<meta name="description" content="Control de traslados TATA: registro de guardias, vehículos, tiempos y alertas."/>
+<meta name="theme-color" content="#8B2635"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="TATA Transportes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<link rel="manifest" href="/tata-control-transportes/manifest.webmanifest"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/tata-control-transportes/icons/tata-192.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="/tata-control-transportes/icons/tata-192.png"/>
+<style>*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; background: #F8F8F8; }</style></head><body style="margin:0"><div id="root"></div><script>const __mods={
 0:[function(module,exports,require,process){
 "use strict";
@@ -18610,4 +18620,75 @@ function __require(id){
  mod[0](module,module.exports,rq,__process);return module.exports;
 }
 try {__require(0);window.__TATA_DEMO_READY=true;}catch(err){console.error(err);document.querySelector('#root').innerHTML='<div style="font-family:Arial;padding:30px;color:#8B2635"><h2>Error al iniciar demo</h2><pre>'+String(err.stack||err).replace(/</g,'&lt;')+'</pre></div>';}
+</script>
+<script>
+(function(){
+  "use strict";
+  const BASE="/tata-control-transportes/";
+  if("serviceWorker" in navigator && location.protocol==="https:"){
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register(BASE+"sw.js",{scope:BASE}).catch(function(error){
+        console.warn("No se pudo preparar la instalación de TATA:",error);
+      });
+    });
+  }
+  const isStandalone=window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
+  if(isStandalone)return;
+  const ua=navigator.userAgent||"";
+  const isIOS=/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const isSafari=/Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+  let installEvent=null;
+  let shown=false;
+  let banner=null;
+  function show(label){
+    if(shown && banner){
+      const installBtn=banner.querySelector("[data-pwa-install]");
+      if(installBtn)installBtn.textContent=label;
+      return;
+    }
+    try{if(sessionStorage.getItem("tata_pwa_install_dismissed"))return;}catch(e){}
+    shown=true;
+    banner=document.createElement("div");
+    banner.id="tata-pwa-install";
+    banner.setAttribute("role","region");
+    banner.setAttribute("aria-label","Instalación de TATA Control de Transportes");
+    banner.style.cssText="position:fixed;z-index:900;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));width:min(360px,calc(100% - 28px));display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid #e8cfd3;border-radius:13px;background:#fff;box-shadow:0 6px 30px rgba(0,0,0,.16);font-family:Arial,sans-serif;color:#222;";
+    const ico=document.createElement("img");ico.src=BASE+"icons/tata-192.png";ico.width=38;ico.height=38;ico.alt="";
+    const body=document.createElement("div");body.style.cssText="flex:1;min-width:0;";
+    const title=document.createElement("strong");title.textContent="TATA Transportes";title.style.cssText="display:block;font-size:12px;";
+    const subtitle=document.createElement("small");subtitle.textContent="Accede desde el icono del celular";subtitle.style.cssText="display:block;font-size:10px;color:#555;margin-top:3px;";
+    body.append(title,subtitle);
+    const btn=document.createElement("button");btn.type="button";btn.setAttribute("data-pwa-install","");btn.textContent=label;btn.style.cssText="background:#8B2635;color:#fff;border:0;border-radius:7px;padding:9px 10px;font-size:11px;font-weight:bold;cursor:pointer;";
+    btn.addEventListener("click",async function(){
+      if(installEvent){
+        const ready=installEvent;installEvent=null;
+        try{await ready.prompt();const result=await ready.userChoice;if(result?.outcome==="accepted")banner?.remove();}
+        catch(e){console.warn("No se pudo abrir la instalación",e);}
+        return;
+      }
+      if(isIOS){
+        alert(isSafari?"En Safari toca Compartir (cuadrado con flecha hacia arriba), selecciona Añadir a pantalla de inicio y pulsa Añadir.":"Abre esta página en Safari y utiliza Compartir → Añadir a pantalla de inicio.");
+      }else{
+        alert("En Chrome abre el menú de tres puntos (⋮) y elige Instalar aplicación o Añadir a pantalla principal.");
+      }
+    });
+    const close=document.createElement("button");close.type="button";close.textContent="×";close.setAttribute("aria-label","Cerrar aviso");close.style.cssText="border:0;background:transparent;font-size:19px;color:#666;cursor:pointer;padding:3px;";
+    close.addEventListener("click",function(){
+      try{sessionStorage.setItem("tata_pwa_install_dismissed","1")}catch(e){}
+      banner?.remove();banner=null;shown=false;
+    });
+    banner.append(ico,body,btn,close);
+    document.body.appendChild(banner);
+  }
+  window.addEventListener("beforeinstallprompt",function(event){
+    event.preventDefault();
+    installEvent=event;
+    show("Instalar");
+  });
+  window.addEventListener("appinstalled",function(){installEvent=null;banner?.remove();});
+  if(isIOS || isAndroid){
+    window.setTimeout(function(){if(!installEvent)show("Cómo instalar");},1800);
+  }
+})();
 </script><!-- TATA UI ORIGINAL UNIFICADA V11 · ACCESO CORPORATIVO COMO PRINCIPAL --></body></html>
