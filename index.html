@@ -17804,7 +17804,30 @@ function App() {
             setScanStep(null);
             setCorporateBusy(true);
             try {
-                const result = await tcApi("marcar", { codigo: code, planta: corporatePlant, modalidad: curReg.transport, vehiculo: curReg.scooterId || null, bateria: curReg.battery ?? null, kilometraje: curReg.km ?? null }, corporateAuth.token);
+                const previo=await tcApi("prevalidar",{codigo:code,planta:corporatePlant},corporateAuth.token);
+                const current=previo.traslado_abierto;
+                const type=previo.movimiento==="llegada"?"LLEGADA":"SALIDA";
+                const transport=previo.movimiento==="llegada"?(current?.modalidad||curReg.transport):curReg.transport;
+                const vehicle=previo.movimiento==="llegada"?(current?.vehiculo_referencia||"Sin vehiculo"):curReg.scooterId||"A pie";
+                const notice=[
+                    "CONFIRMACIÓN OBLIGATORIA DEL GUARDIA",
+                    "¿Tienes al colaborador físicamente frente a ti?",
+                    "",
+                    "Colaborador: "+previo.nombre,
+                    "Gafete: "+code,
+                    "Movimiento: "+type,
+                    "Planta actual: "+corporatePlant,
+                    "Transporte: "+transport,
+                    "Vehículo: "+vehicle,
+                    previo.advertencia ? "\nATENCIÓN: "+previo.advertencia : "",
+                    "",
+                    "Aceptar solo si verificaste el gafete y la presencia de la persona."
+                ].filter(Boolean).join("\n");
+                if(!window.confirm(notice)){
+                    showToast("Marcaje cancelado; no se guardó ninguna salida ni llegada.","warn");
+                    return;
+                }
+                const result = await tcApi("marcar", { codigo: code, planta: corporatePlant, modalidad: transport, vehiculo: previo.movimiento==="llegada"?(current?.vehiculo_referencia||null):(curReg.scooterId || null), bateria: curReg.battery ?? null, kilometraje: curReg.km ?? null, confirmado:true }, corporateAuth.token);
                 const m = result.movimiento;
                 setCorporateResult(m);
                 setCorporateScanError(null);
