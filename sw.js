@@ -1,5 +1,5 @@
 /* TATA PWA: cache public app shell only. Never cache Supabase/API calls or private data. */
-const CACHE_NAME = "tata-transportes-shell-v1";
+const CACHE_NAME = "tata-transportes-shell-v2";
 const BASE = "/tata-control-transportes/";
 const APP_SHELL = [
   BASE, BASE+"index.html", BASE+"manifest.webmanifest",
