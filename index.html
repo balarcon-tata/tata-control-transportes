@@ -17568,6 +17568,7 @@ function App() {
     const [ready, setReady] = (0, react_1.useState)(false);
     const [fbError, setFbError] = (0, react_1.useState)(null);
     const [session, setSession] = (0, react_1.useState)(null);
+    const [restoringSession,setRestoringSession]=(0,react_1.useState)(true);
     const [scooters, setScooters] = (0, react_1.useState)([]);
     const [events, setEvents] = (0, react_1.useState)([]);
     const [users, setUsers] = (0, react_1.useState)([]);
@@ -17601,14 +17602,71 @@ function App() {
     const eventsRef = (0, react_1.useRef)([]);
     (0, react_1.useEffect)(() => { eventsRef.current = events; }, [events]);
     (0, react_1.useEffect)(() => { saveLocal("tata_session_v4_demo", session?.corporate ? null : session); }, [session]);
-    (0, react_1.useEffect)(() => { if (session?.corporate && !corporateAuth)
-        setSession(null); }, []);
+    (0,react_1.useEffect)(()=>{
+        let active=true;
+        const restore=async()=>{
+            try{
+                const saved=JSON.parse(localStorage.getItem("tc_persistent_auth_v1")||"null");
+                if(!saved?.token||!saved?.expires||!saved?.role) return;
+                if(saved.role==="guardia"){
+                    if(!saved.token.startsWith("tcg_")||saved.expires*1000<=Date.now())throw Error("Sesión vencida");
+                    const result=await tcApi("estado",{},saved.token);
+                    if(!active)return;
+                    setCorporateAuth({token:saved.token,expires:saved.expires,role:"guardia"});
+                    setSession({id:saved.userId||"GUARDIA",name:result.perfil.nombre,role:"guardia",active:true,corporate:true});
+                    setView("register");
+                }else{
+                    let value=saved;
+                    if(saved.expires*1000<=Date.now()+120000){
+                        if(!saved.refresh_token)throw Error("Sesión vencida");
+                        const fresh=await tcApi("renovar_sesion",{refresh_token:saved.refresh_token});
+                        value={token:fresh.token,refresh_token:fresh.refresh_token,expires:Number(fresh.expires_at),role:fresh.perfil.rol,userId:"CORP-SESSION"};
+                    }
+                    const result=await tcApi("estado",{},value.token);
+                    if(!active)return;
+                    value.role=result.perfil.rol;
+                    localStorage.setItem("tc_persistent_auth_v1",JSON.stringify(value));
+                    setCorporateAuth(value);
+                    setSession({id:"CORP-SESSION",name:result.perfil.nombre,role:result.perfil.rol,active:true,corporate:true});
+                    setView("dashboard");
+                }
+            }catch(e){try{localStorage.removeItem("tc_persistent_auth_v1")}catch{}}
+            finally{if(active)setRestoringSession(false)}
+        };
+        restore();
+        return ()=>{active=false};
+    },[]);
+    (0,react_1.useEffect)(()=>{
+        if(!corporateAuth?.token||!session?.corporate)return;
+        try{localStorage.setItem("tc_persistent_auth_v1",JSON.stringify({
+          token:corporateAuth.token,refresh_token:corporateAuth.refresh_token||null,
+          role:session.role,userId:session.id,expires:corporateAuth.expires
+        }))}catch{}
+    },[corporateAuth?.token,corporateAuth?.expires,session?.role,session?.id]);
+    (0,react_1.useEffect)(()=>{
+        if(!corporateAuth?.refresh_token||!session?.corporate||session.role==="guardia")return;
+        let cancelled=false;
+        const renew=async()=>{
+            if(Date.now()<Number(corporateAuth.expires)*1000-120000)return;
+            try{
+                const r=await tcApi("renovar_sesion",{refresh_token:corporateAuth.refresh_token});
+                if(cancelled)return;
+                setCorporateAuth({token:r.token,refresh_token:r.refresh_token,expires:Number(r.expires_at),role:r.perfil.rol});
+            }catch(e){
+                if(cancelled)return;
+                localStorage.removeItem("tc_persistent_auth_v1");
+                setCorporateAuth(null);setSession(null);
+            }
+        };
+        const interval=setInterval(renew,60000);
+        return ()=>{cancelled=true;clearInterval(interval)}
+    },[corporateAuth?.refresh_token,corporateAuth?.expires,session?.role]);
     const corporateLogin = async (email, password) => {
         const result = await tcApi("login", { email: email.trim(), password });
         const profile = result.perfil;
         if (!result.token || !profile)
             throw Error("El servidor no confirmó la sesión");
-        setCorporateAuth({ token: result.token, expires: Number(result.expires_at) });
+        setCorporateAuth({ token: result.token, refresh_token: result.refresh_token, expires: Number(result.expires_at) });
         setCorporatePlant("");
         setCorporateHistory([]);
         setCorporateResult(null);
@@ -17676,7 +17734,7 @@ function App() {
     // ni escribe alertas por intervalos; un agente de servidor debe hacerlo en producción.
     (0, react_1.useEffect)(() => { const t = setInterval(() => setClock(Date.now()), 5000); return () => clearInterval(t); }, []);
     const showToast = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
-    const logout = () => { if(corporateAuth?.token?.startsWith("tcg_")) tcApi("guardia_salir",{},corporateAuth.token).catch(()=>{}); setCorporateScanError(null); setSession(null); setCorporateAuth(null); setCorporatePlant(""); setCorporateHistory([]); setCorporateResult(null); setView("dashboard"); setScanStep(null); setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null }); };
+    const logout = () => { try{localStorage.removeItem("tc_persistent_auth_v1")}catch{}; if(corporateAuth?.token?.startsWith("tcg_")) tcApi("guardia_salir",{},corporateAuth.token).catch(()=>{}); setCorporateScanError(null); setSession(null); setCorporateAuth(null); setCorporatePlant(""); setCorporateHistory([]); setCorporateResult(null); setView("dashboard"); setScanStep(null); setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null }); };
     const isVisor = session?.role === "visor";
     const canRegister = session && ["guardia", "admin", "supervisor", "operador"].includes(session.role);
     const canAdmin = session?.role === "admin";
@@ -17947,6 +18005,8 @@ PRUEBA LOCAL · NO ES UNA ALERTA REAL`;
         return (0, jsx_runtime_1.jsx)(Spinner, {});
     if (publicMode)
         return (0, jsx_runtime_1.jsx)(PublicDashboard, { scooters: scooters, onClose: () => setPublicMode(false) });
+    if (restoringSession)
+        return (0,jsx_runtime_1.jsx)("div",{style:{minHeight:"100vh",display:"grid",placeItems:"center",fontFamily:"Arial",color:"#8B2635"},children:"Verificando sesión guardada..."});
     if (!session)
         return (0, jsx_runtime_1.jsx)(PinLogin, { users: users, onLogin: u => { setCorporateAuth(null); setSession(u); showToast(`Bienvenido, ${u.name}`, "ok"); }, onPublic: () => setPublicMode(true), onCorporateLogin: corporateLogin, onGuardLogin: guardLogin });
     return ((0, jsx_runtime_1.jsxs)("div", { style: { minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Segoe UI',system-ui,sans-serif", maxWidth: 480, margin: "0 auto", paddingBottom: 80 }, children: [(0, jsx_runtime_1.jsx)("style", { children: `
