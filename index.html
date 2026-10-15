@@ -17828,33 +17828,15 @@ function App() {
                     showToast("El gafete no tiene llegada pendiente. Selecciona el transporte para registrar una salida.","err");
                     return;
                 }
-                const type=previo.movimiento==="llegada"?"LLEGADA":"SALIDA";
+                // El escaneo del gafete por el guardia es la acción explícita de registro.
+                // Se mantiene la prevalidación en el servidor sin pedir un segundo clic.
                 const transport=previo.movimiento==="llegada"?(current?.modalidad||curReg.transport):curReg.transport;
-                const vehicle=previo.movimiento==="llegada"?(current?.vehiculo_referencia||"Sin vehiculo"):curReg.scooterId||"A pie";
-                const notice=[
-                    "CONFIRMACIÓN OBLIGATORIA DEL GUARDIA",
-                    "¿Tienes al colaborador físicamente frente a ti?",
-                    "",
-                    "Colaborador: "+previo.nombre,
-                    "Gafete: "+code,
-                    "Movimiento: "+type,
-                    "Planta actual: "+corporatePlant,
-                    "Transporte: "+transport,
-                    "Vehículo: "+vehicle,
-                    previo.advertencia ? "\nATENCIÓN: "+previo.advertencia : "",
-                    "",
-                    "Aceptar solo si verificaste el gafete y la presencia de la persona."
-                ].filter(Boolean).join("\n");
-                if(!window.confirm(notice)){
-                    showToast("Marcaje cancelado; no se guardó ninguna salida ni llegada.","warn");
-                    return;
-                }
                 const result = await tcApi("marcar", { codigo: code, planta: corporatePlant, modalidad: transport, vehiculo: previo.movimiento==="llegada"?(current?.vehiculo_referencia||null):(curReg.scooterId || null), bateria: curReg.battery ?? null, kilometraje: curReg.km ?? null, confirmado:true }, corporateAuth.token);
                 const m = result.movimiento;
                 setCorporateResult(m);
                 setCorporateScanError(null);
                 const incidencias = Array.isArray(m.incidencias) ? m.incidencias : [];
-                showToast(m.tipo === "duplicado" ? "Escaneo repetido: ya está registrado" : ((m.tipo === "salida" ? "Salida" : "Llegada") + " guardada: " + m.nombre + (incidencias.length ? " · Incidencia notificada" : "")), "ok");
+                showToast(m.tipo === "duplicado" ? "Escaneo repetido: ya está registrado" : ((m.tipo === "salida" ? "Salida" : "Llegada") + " guardada: " + m.nombre + (incidencias.length ? " · Marcaje previo pendiente de revisión" : "")), "ok");
                 setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null });
             }
             catch (err) {
