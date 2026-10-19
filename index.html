@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes | LIVE 2026.10.19.4</title>
+<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes | LIVE 2026.10.19.5</title>
 <meta name="description" content="Control de traslados TATA: registro de guardias, vehículos, tiempos y alertas."/>
 <meta name="theme-color" content="#8B2635"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -17811,7 +17811,7 @@ function HistorialRealTransportes({token,rol}) {
 
 
 function PanelRealTransportes({token,screen}){
- const FRONT_VERSION="2026.10.19.4";
+ const FRONT_VERSION="2026.10.19.5";
  const h=react_1.createElement;
  const [datos,setDatos]=react_1.useState(null),[error,setError]=react_1.useState(""),[cargando,setCargando]=react_1.useState(true);
  const [modo,setModo]=react_1.useState("todos"),[mes,setMes]=react_1.useState(()=>gtDay().slice(0,7));
@@ -17828,7 +17828,11 @@ function PanelRealTransportes({token,screen}){
  const late=complete.filter(t=>duration(t)>t.limite);
  const missing=selected.filter(t=>t.estado==="sin_llegada");
  const active=selected.filter(t=>t.estado==="en_curso");
- const alerts=selected.filter(t=>t.estado==="sin_llegada"||t.estado==="en_curso"&&now-Date.parse(t.salida_at)>t.limite*60000||t.estado==="finalizado"&&duration(t)>t.limite);
+ const validLimit=t=>Number.isFinite(Number(t.limite))&&Number(t.limite)>0;
+ const sameGuatemalaDay=(iso)=>new Date(Date.parse(iso)-21600000).toISOString().slice(0,10)===gtDay();
+ const activeOverdue=active.filter(t=>validLimit(t)&&sameGuatemalaDay(t.salida_at)&&now-Date.parse(t.salida_at)>Number(t.limite)*60000);
+ const confirmedLate=late.filter(t=>validLimit(t)&&Number.isFinite(duration(t))&&duration(t)>Number(t.limite));
+ const alerts=[...activeOverdue,...confirmedLate].sort((a,b)=>Date.parse(b.salida_at)-Date.parse(a.salida_at));
  const modes=["todos","pie","scooter","camion","tuctuc"];
  const controls=h("div",{style:{display:"flex",gap:7,flexWrap:"wrap",marginBottom:16}},h("input",{type:"month",value:mes,onChange:e=>setMes(e.target.value),style:{padding:9,border:"1px solid #ddd",borderRadius:9}}),...modes.map(x=>h("button",{key:x,onClick:()=>setModo(x),style:{padding:"9px 11px",border:"1px solid #ddd",borderRadius:9,background:modo===x?"#862F41":"#fff",color:modo===x?"#fff":"#17283D"}},x==="todos"?"Todos":x==="pie"?"A pie":x==="tuctuc"?"Tuc tuc":x[0].toUpperCase()+x.slice(1))));
  const kpi=(label,value)=>h("div",{style:{padding:14,border:"1px solid #e5e7eb",borderRadius:12,background:"#fff"}},h("div",{style:{fontSize:10,color:"#778",fontWeight:750}},label),h("div",{style:{fontSize:26,color:"#862F41",fontWeight:800}},value));
@@ -17973,7 +17977,52 @@ function PanelRealTransportes({token,screen}){
    );
  }
  if(screen==="monitor")return h("main",{style:{padding:"10px 14px 100px"}},heading,controls,kpigrid,title("EN CURSO ("+active.length+")"),...items(active),title("ÚLTIMOS FINALIZADOS ("+complete.length+")"),...items(complete),h("button",{onClick:csv,style:{padding:14,background:"#862F41",color:"#fff",border:0,borderRadius:9,width:"100%",fontWeight:800,marginTop:10}},"EXPORTAR TRASLADOS · CSV"));
- return h("main",{style:{padding:"10px 14px 100px"}},heading,controls,h("p",{style:{fontSize:12,color:"#667"}},"Incidencias detectadas en registros, sin envío automático de notificaciones. No se considera ausencia física por falta de marcaje."),h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:9,marginBottom:14}},kpi("INCIDENCIAS",alerts.length),kpi("SIN LLEGADA",missing.length),kpi("DEMORAS",late.length),kpi("EN CURSO VENCIDO",alerts.filter(t=>t.estado==="en_curso").length)),title("MOVIMIENTOS PARA REVISIÓN"),...items(alerts),alerts.length===0?card("No hay incidencias registradas en el período y filtro seleccionado."):null);
+ return h("main",{style:{padding:"12px 13px 100px",background:"#F5F5F6",minHeight:"calc(100vh - 100px)",fontFamily:"'Segoe UI',system-ui,sans-serif"}},
+  h("header",{style:{background:"linear-gradient(125deg,#1A2632 0%,#3B2934 75%,#772638 100%)",color:"#fff",borderTop:"4px solid #8B2635",borderRadius:15,padding:"18px 16px",marginBottom:13}},
+    h("div",{style:{fontSize:10,letterSpacing:1.6,color:"#E5C6CF",fontWeight:850}},"TATA · CONTROL DE TRANSPORTES"),
+    h("h2",{style:{fontSize:21,fontWeight:850,margin:"10px 0 4px"}},"Alertas de atrasos"),
+    h("div",{style:{fontSize:11,color:"#E2E5EB",lineHeight:1.5}},"Solo traslados con exceso de tiempo respecto a su meta"),
+    h("div",{style:{fontSize:10,color:"#C8CDD5",marginTop:10}},"Supabase · Actualizado: "+fmt(datos.actualizado_at)+" · cada 30 s")
+  ),
+  error?h("div",{style:{padding:11,borderRadius:9,background:"#FFF0EB",border:"1px solid #E7BCB3",color:"#A02D28",fontSize:11,marginBottom:11}},"Error al actualizar: "+error):null,
+  controls,
+  h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:13}},
+    ...[
+      ["ATRASOS",alerts.length,"#8B2635"],
+      ["CON LLEGADA",confirmedLate.length,"#B87924"],
+      ["EN CURSO",activeOverdue.length,"#405E82"]
+    ].map(([label,n,color])=>h("div",{key:label,style:{background:"#fff",border:"1px solid #E6E6E9",borderTop:"3px solid "+color,borderRadius:12,padding:"11px 8px",textAlign:"center"}},
+      h("div",{style:{fontSize:9,fontWeight:800,color:"#728090",letterSpacing:.5}},label),
+      h("div",{style:{fontSize:27,fontWeight:850,color:"#202C37",lineHeight:1.15,marginTop:5}},n)
+    ))
+  ),
+  h("div",{style:{fontSize:11,color:"#697687",lineHeight:1.6,marginBottom:15,padding:"0 2px"}},"Las alertas se basan únicamente en retrasos. Los registros sin llegada no se consideran atraso automáticamente. Para traslados abiertos se muestran solo demoras del día actual."),
+  h("div",{style:{display:"flex",alignItems:"baseline",justifyContent:"space-between",margin:"7px 2px 11px"}},
+    h("h3",{style:{fontSize:13,color:"#1C2732",fontWeight:850,margin:0}},"TRASLADOS ATRASADOS"),
+    h("span",{style:{fontSize:11,color:"#7D8894",fontWeight:750}},alerts.length+" registros")
+  ),
+  ...alerts.slice(0,80).map(t=>{
+    const underway=t.estado==="en_curso";
+    const elapsed=underway?(now-Date.parse(t.salida_at))/60000:duration(t);
+    const excess=Math.max(0,elapsed-Number(t.limite));
+    const names={pie:"A pie",scooter:"Scooter",camion:"Camión",tuctuc:"Tuc tuc"};
+    return h("article",{key:t.id,style:{background:"#fff",border:"1px solid #E4E6EA",borderLeft:"4px solid "+(underway?"#8B2635":"#D09A42"),borderRadius:12,padding:13,marginBottom:10,boxShadow:"0 2px 9px rgba(20,27,35,.03)"}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}},
+        h("div",{style:{fontSize:12,fontWeight:850,color:"#1C2834",overflowWrap:"anywhere"}},t.nombre||t.codigo),
+        h("span",{style:{borderRadius:7,background:underway?"#F9E8ED":"#FFF2DA",color:underway?"#8B2635":"#A36316",padding:"5px 7px",fontSize:9,fontWeight:850,whiteSpace:"nowrap"}},underway?"ATRASO EN CURSO":"LLEGADA TARDÍA")
+      ),
+      h("div",{style:{fontSize:11,color:"#627182",marginTop:7}},(names[t.modalidad]||t.modalidad)+(t.vehiculo?" · "+t.vehiculo:"")),
+      h("div",{style:{fontSize:11,color:"#273441",marginTop:7,fontWeight:650}},(t.origen||"Origen no confirmado")+" → "+(t.destino||"Destino no confirmado")),
+      h("div",{style:{display:"flex",flexWrap:"wrap",justifyContent:"space-between",gap:10,borderTop:"1px solid #EEF0F2",marginTop:10,paddingTop:10}},
+        h("div",null,h("div",{style:{fontSize:9,color:"#808A95",fontWeight:750}},"EXCESO"),h("strong",{style:{fontSize:21,color:"#8B2635"}},excess.toFixed(1)+" min")),
+        h("div",null,h("div",{style:{fontSize:9,color:"#808A95",fontWeight:750}},"TIEMPO / META"),h("strong",{style:{fontSize:12,color:"#273441"}},elapsed.toFixed(1)+" / "+Number(t.limite)+" min"))
+      ),
+      h("div",{style:{fontSize:10,color:"#788390",marginTop:9}},"Salida: "+fmt(t.salida_at)+(underway?" · Aún sin llegada confirmada":" · Llegada: "+fmt(t.llegada_at)))
+    );
+  }),
+  alerts.length>80?h("p",{style:{fontSize:11,color:"#697687",textAlign:"center"}},"Se muestran los 80 atrasos más recientes. Puedes filtrar por mes y transporte."):null,
+  alerts.length===0?h("div",{style:{background:"#fff",padding:22,border:"1px solid #E4E6EA",borderRadius:12,textAlign:"center",fontSize:12,color:"#637181"}},"No hay traslados atrasados para los filtros seleccionados."):null
+ );
 }
 
 function App() {
@@ -18482,7 +18531,7 @@ PRUEBA LOCAL · NO ES UNA ALERTA REAL`;
         .pulsing{animation:pulse 1.8s ease-in-out infinite}
         input,select,button{font-family:'Segoe UI',system-ui,sans-serif}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
-      ` }), (0, jsx_runtime_1.jsxs)("header", { style: { background: C.bgWhite, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }, children: [(0, jsx_runtime_1.jsx)(TataLogo, { height: 28 }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", onClick: () => setView("alerts_view"), style: { background: C.dangerBg, border: `1px solid ${C.danger}`, color: C.danger, fontSize: 9, padding: "3px 8px", borderRadius: 20, fontFamily: "monospace", cursor: "pointer", letterSpacing: 1 }, children: [activeAlerts.length, " ALERTA", activeAlerts.length > 1 ? "S" : ""] })), corporate && (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 9, fontWeight: 800, color: C.green, background: C.greenBg, borderRadius: 6, padding: '5px 7px' }, children: "LIVE · v2026.10.19.4" }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right", cursor: "pointer" }, onClick: logout, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.text, fontWeight: 600 }, children: session.name }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 9, color: C.red, letterSpacing: 1, fontFamily: "monospace" }, children: [ROLES[session.role], " - SALIR"] })] })] })] }), (0, jsx_runtime_1.jsx)(Toast, { toast: toast }), view === "dashboard" && corporate && (0,jsx_runtime_1.jsx)(EstadoRealScooters,{token:corporateAuth.token}), view === "dashboard" && !corporate && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", children: [(0, jsx_runtime_1.jsx)("div", { style: { height: 4, background: `linear-gradient(90deg,${C.red},${C.redLight})` } }), corporate && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", padding: "11px 12px", borderRadius: 10, background: C.greenBg, border: `1px solid ${C.green}`, fontSize: 11, color: C.green }, children: [(0, jsx_runtime_1.jsx)("b", { children: "Sesi\u00F3n corporativa \u00B7 Supabase." }), " Usa REGISTRO para marcajes reales. Flota, bater\u00EDa, anal\u00EDtica y alertas de esta pantalla siguen mostrando datos de demostraci\u00F3n."] }), isVisor && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10 }, children: [(0, jsx_runtime_1.jsx)("span", { children: "Vista" }), (0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.blue, fontWeight: 700, fontFamily: "monospace" }, children: "MODO SOLO VISTA" }) })] }), (0, jsx_runtime_1.jsx)("div", { style: { display: "flex", gap: 8, padding: "14px 14px 0" }, children: [
+      ` }), (0, jsx_runtime_1.jsxs)("header", { style: { background: C.bgWhite, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }, children: [(0, jsx_runtime_1.jsx)(TataLogo, { height: 28 }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", onClick: () => setView("alerts_view"), style: { background: C.dangerBg, border: `1px solid ${C.danger}`, color: C.danger, fontSize: 9, padding: "3px 8px", borderRadius: 20, fontFamily: "monospace", cursor: "pointer", letterSpacing: 1 }, children: [activeAlerts.length, " ALERTA", activeAlerts.length > 1 ? "S" : ""] })), corporate && (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 9, fontWeight: 800, color: C.green, background: C.greenBg, borderRadius: 6, padding: '5px 7px' }, children: "LIVE · v2026.10.19.5" }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right", cursor: "pointer" }, onClick: logout, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.text, fontWeight: 600 }, children: session.name }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 9, color: C.red, letterSpacing: 1, fontFamily: "monospace" }, children: [ROLES[session.role], " - SALIR"] })] })] })] }), (0, jsx_runtime_1.jsx)(Toast, { toast: toast }), view === "dashboard" && corporate && (0,jsx_runtime_1.jsx)(EstadoRealScooters,{token:corporateAuth.token}), view === "dashboard" && !corporate && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", children: [(0, jsx_runtime_1.jsx)("div", { style: { height: 4, background: `linear-gradient(90deg,${C.red},${C.redLight})` } }), corporate && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", padding: "11px 12px", borderRadius: 10, background: C.greenBg, border: `1px solid ${C.green}`, fontSize: 11, color: C.green }, children: [(0, jsx_runtime_1.jsx)("b", { children: "Sesi\u00F3n corporativa \u00B7 Supabase." }), " Usa REGISTRO para marcajes reales. Flota, bater\u00EDa, anal\u00EDtica y alertas de esta pantalla siguen mostrando datos de demostraci\u00F3n."] }), isVisor && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10 }, children: [(0, jsx_runtime_1.jsx)("span", { children: "Vista" }), (0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.blue, fontWeight: 700, fontFamily: "monospace" }, children: "MODO SOLO VISTA" }) })] }), (0, jsx_runtime_1.jsx)("div", { style: { display: "flex", gap: 8, padding: "14px 14px 0" }, children: [
                             { label: "DISPONIBLES", val: scooters.filter(s => s.status === "disponible").length, color: C.green, icon: "OK" },
                             { label: "EN USO", val: scooters.filter(s => s.status === "en_uso").length, color: C.red, icon: "->" },
                             { label: "CARGANDO", val: scooters.filter(s => s.status === "cargando").length, color: C.blue, icon: "Z" },
