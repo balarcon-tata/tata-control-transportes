@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes | LIVE 2026.10.19.3</title>
+<!doctype html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TATA Control de Transportes | LIVE 2026.10.19.4</title>
 <meta name="description" content="Control de traslados TATA: registro de guardias, vehículos, tiempos y alertas."/>
 <meta name="theme-color" content="#8B2635"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -17811,7 +17811,7 @@ function HistorialRealTransportes({token,rol}) {
 
 
 function PanelRealTransportes({token,screen}){
- const FRONT_VERSION="2026.10.19.3";
+ const FRONT_VERSION="2026.10.19.4";
  const h=react_1.createElement;
  const [datos,setDatos]=react_1.useState(null),[error,setError]=react_1.useState(""),[cargando,setCargando]=react_1.useState(true);
  const [modo,setModo]=react_1.useState("todos"),[mes,setMes]=react_1.useState(()=>gtDay().slice(0,7));
@@ -17836,7 +17836,142 @@ function PanelRealTransportes({token,screen}){
  const heading=h("div",{style:{padding:"15px 0"}},h("h2",{style:{fontSize:19,margin:0,color:"#17283D"}},screen==="analytics"?"ANALÍTICA REAL":screen==="monitor"?"TRASLADOS REALES":"INCIDENCIAS REALES"),h("p",{style:{fontSize:11,color:"#667",marginTop:5}},"TATA LIVE v"+FRONT_VERSION+" · Fuente: Supabase · Actualización cada 30 segundos · Última consulta: "+fmt(datos.actualizado_at)),error?h("div",{style:{color:"#b91c1c"}},"Último intento fallido: "+error):null);
  const kpigrid=h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:9,marginBottom:14}},kpi("SALIDAS",selected.length),kpi("COMPLETOS",complete.length),kpi("A TIEMPO",ontime.length),kpi("DEMORAS CON LLEGADA",late.length),kpi("SIN LLEGADA",missing.length),kpi("EN CURSO",active.length));
  const csv=()=>{const head=["Código","Nombre","Modalidad","Vehículo","Origen","Destino","Salida","Llegada","Estado","Meta min","Duración min"];const data=[head,...selected.map(t=>[t.codigo,t.nombre,t.modalidad,t.vehiculo,t.origen,t.destino,t.salida_at,t.llegada_at||"",t.estado,t.limite,duration(t)??""])];const escape=x=>'"'+String(x??"").replace(/"/g,'""')+'"';const blob=new Blob(["\ufeff"+data.map(row=>row.map(escape).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="TATA_Traslados_"+mes+".csv";link.click();URL.revokeObjectURL(link.href)};
- if(screen==="analytics")return h("main",{style:{padding:"10px 14px 100px"}},heading,controls,kpigrid,title("INDICADORES DE TRASLADOS"),card(h("div",null,"Cumplimiento de completos: "+(complete.length?(ontime.length/complete.length*100).toFixed(1)+"%":"N/D")),h("div",{style:{marginTop:6}},"Duración promedio de completos: "+(complete.length?(complete.reduce((n,t)=>n+duration(t),0)/complete.length).toFixed(1)+" min":"N/D"))),title("USO POR TRANSPORTE"),...modes.slice(1).map(m=>{const num=selected.filter(t=>t.modalidad===m).length;return card(h("div",null,m.toUpperCase()+" · "+num),h("div",{style:{height:7,background:"#eee",borderRadius:9,overflow:"hidden",marginTop:7}},h("div",{style:{height:"100%",width:(selected.length?100*num/selected.length:0)+"%",background:"#862F41"}})))}),title("TRASLADOS RECIENTES"),...items(selected.slice(0,10)));
+
+ if(screen==="analytics"){
+   const W="#8B2635",W2="#6E1E30",INK="#1B2733",SLATE="#526173",BORDER="#E4E7EC",GREEN="#168354",AMBER="#D39A35",BLUE="#5478AE",BG="#F4F5F7";
+   const monthCount=selected.length;
+   const pct=(x,d)=>d>0?Math.round(x*1000/d)/10:0;
+   const timePct=pct(ontime.length,complete.length);
+   const avgMin=complete.length?(complete.reduce((s,t)=>s+duration(t),0)/complete.length).toFixed(1):"—";
+   const statusRows=[
+     {name:"A tiempo",n:ontime.length,color:GREEN},
+     {name:"Con demora",n:late.length,color:AMBER},
+     {name:"Sin llegada",n:missing.length,color:W},
+     {name:"En curso",n:active.length,color:BLUE}
+   ];
+   const panel=(label,children,extra={})=>h("section",{style:{background:"#FFFFFF",border:"1px solid "+BORDER,borderRadius:16,padding:16,boxShadow:"0 3px 14px rgba(20,32,44,.035)",marginBottom:12,...extra}},h("div",{style:{fontSize:10,fontWeight:850,color:"#7C8693",letterSpacing:1.55,marginBottom:14}},label),children);
+   const thinLine=(n,d,color)=>h("div",{style:{width:"100%",height:8,background:"#EFF0F3",borderRadius:10,overflow:"hidden"}},h("div",{style:{width:pct(n,d)+"%",height:"100%",background:color,borderRadius:10,transition:"width .4s ease"}}));
+   const micro=(name,value,note,color)=>h("div",{style:{background:"#fff",border:"1px solid "+BORDER,borderRadius:13,padding:"14px 13px 13px",boxShadow:"0 2px 8px rgba(31,41,55,.025)",borderTop:"3px solid "+color}},h("div",{style:{color:"#748091",fontWeight:800,letterSpacing:.65,fontSize:9,marginBottom:7}},name),h("div",{style:{fontSize:27,fontWeight:850,letterSpacing:"-1px",lineHeight:1,color:INK}},value),h("div",{style:{fontSize:10,color:SLATE,marginTop:7}},note));
+   let offset=0;const grads=statusRows.map(x=>{const a=pct(offset,Math.max(monthCount,1));offset+=x.n;return x.color+" "+a+"% "+pct(offset,Math.max(monthCount,1))+"%"}).join(", ");
+   const donutBg=monthCount?"conic-gradient("+grads+")":"conic-gradient(#E9EBEE 0% 100%)";
+   const transNames={pie:"A pie",scooter:"Scooter",camion:"Camión",tuctuc:"Tuc tuc"};
+   const modesData=modes.slice(1).map(id=>({id,name:transNames[id],n:selected.filter(t=>t.modalidad===id).length}));
+   const maxMode=Math.max(1,...modesData.map(x=>x.n));
+   const modeColors={pie:GREEN,scooter:W,camion:BLUE,tuctuc:AMBER};
+   const routes={};selected.forEach(t=>{const k=(t.origen||"Origen sin confirmar")+" → "+(t.destino||"Destino sin confirmar");routes[k]=(routes[k]||0)+1});
+   const topRoutes=Object.entries(routes).sort((a,b)=>b[1]-a[1]).slice(0,5);
+   const peak=Math.max(1,...topRoutes.map(x=>x[1]));
+   const hours=Array(24).fill(0);selected.forEach(t=>{const hgt=new Date(new Date(t.salida_at).getTime()-21600000).getUTCHours();if(Number.isInteger(hgt))hours[hgt]++});
+   const maxHour=Math.max(1,...hours);
+   const filters=h("div",{style:{background:"#FFF",border:"1px solid "+BORDER,borderRadius:14,padding:12,marginBottom:14}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:10}},
+        h("span",{style:{fontSize:10,fontWeight:850,color:"#687584",letterSpacing:1}},"PERÍODO Y MEDIO"),
+        h("input",{type:"month",value:mes,onChange:e=>setMes(e.target.value),max:gtDay().slice(0,7),style:{width:157,minWidth:0,fontSize:12,color:INK,fontWeight:750,border:"1px solid "+BORDER,borderRadius:8,padding:"8px 9px",background:"#FAFAFB"}})
+      ),
+      h("div",{style:{display:"flex",gap:7,overflowX:"auto",paddingBottom:2}},...modes.map(id=>h("button",{key:id,onClick:()=>setModo(id),style:{flex:"0 0 auto",border:"1px solid "+(modo===id?W:BORDER),background:modo===id?W:"#fff",color:modo===id?"#fff":SLATE,borderRadius:9,padding:"9px 13px",fontSize:11,fontWeight:750,cursor:"pointer"}},id==="todos"?"Todos":transNames[id]))
+      )
+   );
+   const labels=[{color:GREEN,text:"A tiempo"},{color:AMBER,text:"Demora"},{color:W,text:"Sin llegada"},{color:BLUE,text:"En curso"}];
+   return h("main",{style:{padding:"10px 12px 105px",background:BG,minHeight:"calc(100vh - 120px)",fontFamily:"'Segoe UI',system-ui,sans-serif"}},
+      h("header",{style:{borderRadius:16,background:"linear-gradient(128deg,#17232F 0%,#273543 65%,#572230 100%)",color:"#fff",padding:"19px 18px",marginBottom:12,boxShadow:"0 6px 16px rgba(29,34,43,.11)",borderTop:"4px solid "+W}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}},
+          h("span",{style:{fontSize:9,letterSpacing:2.2,fontWeight:850,color:"#E9CFD4"}},"TATA  /  INTELIGENCIA OPERATIVA"),
+          h("span",{style:{fontSize:9,color:"#D6F6DE",fontWeight:700,whiteSpace:"nowrap"}},"● EN VIVO")
+        ),
+        h("h1",{style:{margin:"13px 0 4px",fontWeight:850,fontSize:23,letterSpacing:-.7}},"Analítica de traslados"),
+        h("div",{style:{fontSize:11,color:"#D4DBE2",lineHeight:1.55}},"Movimientos reales entre plantas · "+mes),
+        h("div",{style:{marginTop:11,fontSize:10,color:"#C9D0D7"}},"Última actualización: "+fmt(datos.actualizado_at)+" · Automática cada 30 s")
+      ),
+      error?h("div",{style:{background:"#FFF2EE",color:"#A42D26",border:"1px solid #EEC5BF",padding:12,borderRadius:10,marginBottom:12,fontSize:11}},"Error al actualizar: "+error):null,
+      datos.limitado?h("div",{style:{background:"#FFF7E4",color:"#855500",padding:10,borderRadius:10,marginBottom:10,fontSize:11}},"El período contiene más movimientos de los que devuelve esta consulta. Revisa los límites del servidor."):null,
+      filters,
+      h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:9,marginBottom:12}},
+        micro("SALIDAS",monthCount,"Movimientos registrados",W),
+        micro("FINALIZADOS",complete.length,"Con llegada",INK),
+        micro("SIN LLEGADA",missing.length,"Registro pendiente",AMBER),
+        micro("EN CURSO",active.length,"Movimientos abiertos",BLUE)
+      ),
+      panel("CUMPLIMIENTO OPERATIVO",
+        h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:13,flexWrap:"wrap"}},
+          h("div",{style:{flex:"1 1 160px",minWidth:0}},
+            h("div",{style:{fontSize:43,fontWeight:900,lineHeight:1,color:W,letterSpacing:"-2px"}},complete.length?timePct.toFixed(1)+"%":"—"),
+            h("div",{style:{fontSize:12,color:INK,fontWeight:800,marginTop:7}},"Llegadas dentro de la meta"),
+            h("div",{style:{fontSize:10,color:SLATE,marginTop:4,lineHeight:1.6}},ontime.length+" a tiempo de "+complete.length+" traslados finalizados"),
+            h("div",{style:{marginTop:14}},thinLine(ontime.length,complete.length,W)),
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:10,color:SLATE,marginTop:9}},
+              h("span",null,"Duración promedio"),h("strong",{style:{color:INK}},avgMin+" min"))
+          ),
+          h("div",{style:{width:148,flex:"0 0 148px",margin:"0 auto"}},
+            h("div",{style:{width:144,height:144,borderRadius:"50%",background:donutBg,display:"flex",alignItems:"center",justifyContent:"center"}},
+              h("div",{style:{width:104,height:104,background:"#fff",borderRadius:"50%",display:"flex",alignItems:"center",flexDirection:"column",justifyContent:"center"}},
+                h("span",{style:{fontSize:29,color:INK,fontWeight:900,lineHeight:1}},monthCount),
+                h("span",{style:{fontSize:9,color:"#8A949F",fontWeight:750,marginTop:5}},"SALIDAS TOTALES")
+              )
+            )
+          )
+        ),
+        {marginBottom:12}
+      ),
+      panel("RESULTADO DE MOVIMIENTOS",
+        h("div",null,
+          h("div",{style:{height:16,display:"flex",width:"100%",borderRadius:10,overflow:"hidden",background:"#E9EBEE",marginBottom:18}},
+            ...statusRows.map(x=>h("div",{key:x.name,style:{width:pct(x.n,monthCount)+"%",height:"100%",background:x.color,transition:"width .3s"}}))
+          ),
+          ...statusRows.map(x=>h("div",{key:x.name,style:{display:"grid",gridTemplateColumns:"10px minmax(0,1fr) 36px 48px",alignItems:"center",gap:9,marginBottom:12}},
+            h("div",{style:{width:9,height:9,borderRadius:3,background:x.color}}),
+            h("span",{style:{fontSize:12,color:INK,fontWeight:650}},x.name),
+            h("strong",{style:{textAlign:"right",fontSize:12,color:INK}},x.n),
+            h("span",{style:{textAlign:"right",fontSize:11,color:SLATE}},pct(x.n,monthCount).toFixed(1)+"%")
+          ))
+        )
+      ),
+      panel("ACTIVIDAD POR HORA",
+        h("div",null,
+          h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:9,color:SLATE,fontSize:10}},
+            h("span",null,"Salidas registradas · horario de Guatemala"),
+            h("strong",{style:{color:INK}},"Pico: "+Math.max(...hours)+" salidas")
+          ),
+          h("div",{style:{height:135,display:"flex",alignItems:"stretch",gap:3,borderBottom:"1px solid "+BORDER,paddingBottom:4}},
+            ...hours.map((n,i)=>h("div",{key:i,title:String(i).padStart(2,"0")+":00 · "+n+" salidas",style:{display:"flex",flex:"1 1 0",justifyContent:"flex-end",alignItems:"center",flexDirection:"column",minWidth:0,gap:4}},
+              h("div",{style:{height:Math.max(3,113*n/maxHour)+"px",width:"100%",background:n===maxHour&&n>0?W:"#BD929C",borderRadius:"3px 3px 0 0"}})
+            ))
+          ),
+          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:10,color:"#8B94A0",marginTop:7}},
+            ...["00h","04h","08h","12h","16h","20h","23h"].map(x=>h("span",{key:x},x))
+          )
+        )
+      ),
+      panel("USO POR TRANSPORTE",
+        h("div",null,...modesData.map(x=>h("div",{key:x.id,style:{marginBottom:14}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
+            h("span",{style:{fontSize:12,color:INK,fontWeight:700}},x.name),
+            h("span",{style:{fontSize:11,color:SLATE}},x.n+" · "+pct(x.n,monthCount).toFixed(1)+"%")
+          ),
+          thinLine(x.n,maxMode,modeColors[x.id])
+        )))
+      ),
+      panel("RUTAS CON MAYOR MOVIMIENTO",
+        topRoutes.length?h("div",null,...topRoutes.map(([route,n],i)=>h("div",{key:route,style:{display:"grid",gridTemplateColumns:"23px minmax(0,1fr) 34px",alignItems:"center",gap:11,marginBottom:13}},
+          h("div",{style:{width:23,height:23,background:i===0?W:"#F0E5E7",color:i===0?"#fff":W,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}},i+1),
+          h("div",{style:{minWidth:0}},
+            h("div",{style:{fontSize:11,fontWeight:700,color:INK,overflowWrap:"anywhere",marginBottom:6}},route),
+            thinLine(n,peak,i===0?W:"#AD6B79")
+          ),
+          h("strong",{style:{textAlign:"right",fontSize:13,color:INK}},n)
+        ))):h("div",{style:{fontSize:12,color:SLATE}},"No hay movimientos para este filtro.")
+      ),
+      h("div",{style:{padding:"0 5px 3px",fontSize:10,color:SLATE,lineHeight:1.6}},"Nota: «Sin llegada» indica que no existe un marcaje válido de ingreso; no implica necesariamente que la persona no haya llegado a su destino."),
+      h("div",{style:{margin:"18px 2px 9px",fontSize:11,fontWeight:850,letterSpacing:1.5,color:INK}},"ÚLTIMOS MOVIMIENTOS"),
+      ...selected.slice(0,5).map(t=>h("div",{key:t.id,style:{background:"#fff",border:"1px solid "+BORDER,borderRadius:12,padding:"12px 13px",marginBottom:8,display:"flex",justifyContent:"space-between",gap:8}},
+        h("div",{style:{minWidth:0}},
+          h("div",{style:{fontSize:12,color:INK,fontWeight:750}},(t.nombre||t.codigo)+" · "+(transNames[t.modalidad]||t.modalidad)),
+          h("div",{style:{fontSize:11,color:SLATE,marginTop:4}},(t.origen||"Sin origen")+" → "+(t.destino||"Sin destino")),
+          h("div",{style:{fontSize:10,color:"#8B94A0",marginTop:4}},"Salida: "+fmt(t.salida_at))
+        ),
+        h("span",{style:{alignSelf:"flex-start",whiteSpace:"nowrap",fontSize:9,color:t.estado==="sin_llegada"?W:t.estado==="en_curso"?BLUE:duration(t)>t.limite?AMBER:GREEN,fontWeight:800}},t.estado==="sin_llegada"?"SIN LLEGADA":t.estado==="en_curso"?"EN CURSO":duration(t)>t.limite?"DEMORA":"A TIEMPO")
+      ))
+   );
+ }
  if(screen==="monitor")return h("main",{style:{padding:"10px 14px 100px"}},heading,controls,kpigrid,title("EN CURSO ("+active.length+")"),...items(active),title("ÚLTIMOS FINALIZADOS ("+complete.length+")"),...items(complete),h("button",{onClick:csv,style:{padding:14,background:"#862F41",color:"#fff",border:0,borderRadius:9,width:"100%",fontWeight:800,marginTop:10}},"EXPORTAR TRASLADOS · CSV"));
  return h("main",{style:{padding:"10px 14px 100px"}},heading,controls,h("p",{style:{fontSize:12,color:"#667"}},"Incidencias detectadas en registros, sin envío automático de notificaciones. No se considera ausencia física por falta de marcaje."),h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:9,marginBottom:14}},kpi("INCIDENCIAS",alerts.length),kpi("SIN LLEGADA",missing.length),kpi("DEMORAS",late.length),kpi("EN CURSO VENCIDO",alerts.filter(t=>t.estado==="en_curso").length)),title("MOVIMIENTOS PARA REVISIÓN"),...items(alerts),alerts.length===0?card("No hay incidencias registradas en el período y filtro seleccionado."):null);
 }
@@ -18347,7 +18482,7 @@ PRUEBA LOCAL · NO ES UNA ALERTA REAL`;
         .pulsing{animation:pulse 1.8s ease-in-out infinite}
         input,select,button{font-family:'Segoe UI',system-ui,sans-serif}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
-      ` }), (0, jsx_runtime_1.jsxs)("header", { style: { background: C.bgWhite, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }, children: [(0, jsx_runtime_1.jsx)(TataLogo, { height: 28 }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", onClick: () => setView("alerts_view"), style: { background: C.dangerBg, border: `1px solid ${C.danger}`, color: C.danger, fontSize: 9, padding: "3px 8px", borderRadius: 20, fontFamily: "monospace", cursor: "pointer", letterSpacing: 1 }, children: [activeAlerts.length, " ALERTA", activeAlerts.length > 1 ? "S" : ""] })), corporate && (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 9, fontWeight: 800, color: C.green, background: C.greenBg, borderRadius: 6, padding: '5px 7px' }, children: "LIVE · v2026.10.19.3" }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right", cursor: "pointer" }, onClick: logout, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.text, fontWeight: 600 }, children: session.name }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 9, color: C.red, letterSpacing: 1, fontFamily: "monospace" }, children: [ROLES[session.role], " - SALIR"] })] })] })] }), (0, jsx_runtime_1.jsx)(Toast, { toast: toast }), view === "dashboard" && corporate && (0,jsx_runtime_1.jsx)(EstadoRealScooters,{token:corporateAuth.token}), view === "dashboard" && !corporate && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", children: [(0, jsx_runtime_1.jsx)("div", { style: { height: 4, background: `linear-gradient(90deg,${C.red},${C.redLight})` } }), corporate && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", padding: "11px 12px", borderRadius: 10, background: C.greenBg, border: `1px solid ${C.green}`, fontSize: 11, color: C.green }, children: [(0, jsx_runtime_1.jsx)("b", { children: "Sesi\u00F3n corporativa \u00B7 Supabase." }), " Usa REGISTRO para marcajes reales. Flota, bater\u00EDa, anal\u00EDtica y alertas de esta pantalla siguen mostrando datos de demostraci\u00F3n."] }), isVisor && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10 }, children: [(0, jsx_runtime_1.jsx)("span", { children: "Vista" }), (0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.blue, fontWeight: 700, fontFamily: "monospace" }, children: "MODO SOLO VISTA" }) })] }), (0, jsx_runtime_1.jsx)("div", { style: { display: "flex", gap: 8, padding: "14px 14px 0" }, children: [
+      ` }), (0, jsx_runtime_1.jsxs)("header", { style: { background: C.bgWhite, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }, children: [(0, jsx_runtime_1.jsx)(TataLogo, { height: 28 }), (0, jsx_runtime_1.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [activeAlerts.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "pulsing", onClick: () => setView("alerts_view"), style: { background: C.dangerBg, border: `1px solid ${C.danger}`, color: C.danger, fontSize: 9, padding: "3px 8px", borderRadius: 20, fontFamily: "monospace", cursor: "pointer", letterSpacing: 1 }, children: [activeAlerts.length, " ALERTA", activeAlerts.length > 1 ? "S" : ""] })), corporate && (0, jsx_runtime_1.jsx)("span", { style: { fontSize: 9, fontWeight: 800, color: C.green, background: C.greenBg, borderRadius: 6, padding: '5px 7px' }, children: "LIVE · v2026.10.19.4" }), (0, jsx_runtime_1.jsxs)("div", { style: { textAlign: "right", cursor: "pointer" }, onClick: logout, children: [(0, jsx_runtime_1.jsx)("div", { style: { fontSize: 11, color: C.text, fontWeight: 600 }, children: session.name }), (0, jsx_runtime_1.jsxs)("div", { style: { fontSize: 9, color: C.red, letterSpacing: 1, fontFamily: "monospace" }, children: [ROLES[session.role], " - SALIR"] })] })] })] }), (0, jsx_runtime_1.jsx)(Toast, { toast: toast }), view === "dashboard" && corporate && (0,jsx_runtime_1.jsx)(EstadoRealScooters,{token:corporateAuth.token}), view === "dashboard" && !corporate && ((0, jsx_runtime_1.jsxs)("div", { className: "anim", children: [(0, jsx_runtime_1.jsx)("div", { style: { height: 4, background: `linear-gradient(90deg,${C.red},${C.redLight})` } }), corporate && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", padding: "11px 12px", borderRadius: 10, background: C.greenBg, border: `1px solid ${C.green}`, fontSize: 11, color: C.green }, children: [(0, jsx_runtime_1.jsx)("b", { children: "Sesi\u00F3n corporativa \u00B7 Supabase." }), " Usa REGISTRO para marcajes reales. Flota, bater\u00EDa, anal\u00EDtica y alertas de esta pantalla siguen mostrando datos de demostraci\u00F3n."] }), isVisor && (0, jsx_runtime_1.jsxs)("div", { style: { margin: "10px 14px 0", background: C.blueBg, border: `1px solid ${C.blue}`, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10 }, children: [(0, jsx_runtime_1.jsx)("span", { children: "Vista" }), (0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsx)("div", { style: { fontSize: 10, color: C.blue, fontWeight: 700, fontFamily: "monospace" }, children: "MODO SOLO VISTA" }) })] }), (0, jsx_runtime_1.jsx)("div", { style: { display: "flex", gap: 8, padding: "14px 14px 0" }, children: [
                             { label: "DISPONIBLES", val: scooters.filter(s => s.status === "disponible").length, color: C.green, icon: "OK" },
                             { label: "EN USO", val: scooters.filter(s => s.status === "en_uso").length, color: C.red, icon: "->" },
                             { label: "CARGANDO", val: scooters.filter(s => s.status === "cargando").length, color: C.blue, icon: "Z" },
