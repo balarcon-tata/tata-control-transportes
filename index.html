@@ -17987,25 +17987,39 @@ function App() {
         const date=window.prompt("Fecha del reporte (AAAA-MM-DD), con datos de Supabase:",gtDay());
         if(date===null)return;
         if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return showToast("Fecha inválida. Usa AAAA-MM-DD","err");
-        showToast("Generando Excel de transportes...","ok");
+        const url="https://ezhlltgcqektrclgzhfi.supabase.co/functions/v1/tc-reporte-cierre";
+        const headers={"Content-Type":"application/json","Authorization":"Bearer "+corporateAuth.token};
+        showToast("Validando datos del reporte...","ok");
         try{
-            const response=await fetch("https://ezhlltgcqektrclgzhfi.supabase.co/functions/v1/tc-reporte-cierre",{
-                method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+corporateAuth.token},
-                body:JSON.stringify({fecha:date,formato:"xlsx"})
-            });
+            const preview=await fetch(url,{method:"POST",headers,body:JSON.stringify({fecha:date,formato:"json"})});
+            const detail=await preview.json().catch(()=>({}));
+            if(!preview.ok)throw Error(detail.error||"No se pudo validar el reporte");
+            const s=detail.resumen||{};
+            const total=Number(s.total),completos=Number(s.completos),sinLlegada=Number(s.sinLlegada),revision=Number(s.revision);
+            if(s.fecha!==date||![total,completos,sinLlegada,revision].every(Number.isInteger)||total!==completos+sinLlegada+revision||!Array.isArray(detail.traslados)||detail.traslados.length!==total){
+                throw Error("El reporte no cuadra con los movimientos. No se descargó información inconsistente.");
+            }
+            showToast("Datos validados. Generando Excel...","ok");
+            const response=await fetch(url,{method:"POST",headers,body:JSON.stringify({fecha:date,formato:"xlsx"})});
             if(!response.ok){
                 const result=await response.json().catch(()=>({}));
                 throw Error(result.error||"Error al generar el Excel");
             }
-            const objectURL=URL.createObjectURL(await response.blob());
+            const type=response.headers.get("Content-Type")||"";
+            const blob=await response.blob();
+            const signature=new Uint8Array(await blob.slice(0,4).arrayBuffer());
+            if(!type.includes("spreadsheetml.sheet")||blob.size<1000||signature[0]!==0x50||signature[1]!==0x4b){
+                throw Error("El servidor no devolvió un Excel válido. Descarga cancelada.");
+            }
+            const objectURL=URL.createObjectURL(blob);
             const link=document.createElement("a");
             link.href=objectURL;link.download="TATA_Transportes_"+date+".xlsx";
             document.body.appendChild(link);link.click();link.remove();
             setTimeout(()=>URL.revokeObjectURL(objectURL),3000);
-            showToast("Excel generado correctamente","ok");
+            showToast("Excel validado: "+total+" salidas, "+completos+" completos, "+sinLlegada+" sin llegada, "+revision+" en revisión.","ok");
         }catch(e){showToast(String(e?.message||e),"err")}
     };
-    const logout = () => { try{localStorage.removeItem("tc_persistent_auth_v1")}catch{}; if(corporateAuth?.token?.startsWith("tcg_")) tcApi("guardia_salir",{},corporateAuth.token).catch(()=>{}); setCorporateScanError(null); setSession(null); setCorporateAuth(null); setCorporatePlant(""); setCorporateHistory([]); setCorporateResult(null); setView("dashboard"); setScanStep(null); setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null }); };
+        const logout = () => { try{localStorage.removeItem("tc_persistent_auth_v1")}catch{}; if(corporateAuth?.token?.startsWith("tcg_")) tcApi("guardia_salir",{},corporateAuth.token).catch(()=>{}); setCorporateScanError(null); setSession(null); setCorporateAuth(null); setCorporatePlant(""); setCorporateHistory([]); setCorporateResult(null); setView("dashboard"); setScanStep(null); setCurReg({ transport: null, scooterId: null, workerId: null, workerName: null, battery: null, km: null, from: null }); };
     const isVisor = session?.role === "visor";
     const canRegister = session && ["guardia", "admin", "supervisor", "operador"].includes(session.role);
     const canAdmin = session?.role === "admin";
