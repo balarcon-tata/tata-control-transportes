@@ -3,7 +3,7 @@
   "short_name": "TATA Transportes",
   "description": "Marcajes y control de traslados entre plantas TATA.",
   "id": "/tata-control-transportes/",
-  "start_url": "/tata-control-transportes/",
+  "start_url": "/tata-control-transportes/index.html?v=20261019-3",
   "scope": "/tata-control-transportes/",
   "display": "standalone",
   "background_color": "#F8F8F8",
